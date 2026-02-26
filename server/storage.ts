@@ -50,6 +50,22 @@ export interface IStorage {
     totalRevenue: number;
     recentLeads: Lead[];
   }>;
+
+  // Assignments
+  getAssignments(): Promise<Assignment[]>;
+  createAssignment(assignment: InsertAssignment): Promise<Assignment>;
+
+  // Exams
+  getExams(): Promise<Exam[]>;
+  createExam(exam: InsertExam): Promise<Exam>;
+
+  // Inventory
+  getInventory(): Promise<InventoryItem[]>;
+  createInventory(item: InsertInventory): Promise<InventoryItem>;
+
+  // Transactions
+  getTransactions(): Promise<Transaction[]>;
+  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -164,6 +180,42 @@ export class DatabaseStorage implements IStorage {
       totalRevenue,
       recentLeads
     };
+  }
+
+  // Assignments
+  async getAssignments(): Promise<Assignment[]> {
+    return await db.select().from(assignments).orderBy(assignments.createdAt);
+  }
+  async createAssignment(assignment: InsertAssignment): Promise<Assignment> {
+    const [newAssignment] = await db.insert(assignments).values(assignment).returning();
+    return newAssignment;
+  }
+
+  // Exams
+  async getExams(): Promise<Exam[]> {
+    return await db.select().from(exams).orderBy(exams.date);
+  }
+  async createExam(exam: InsertExam): Promise<Exam> {
+    const [newExam] = await db.insert(exams).values(exam).returning();
+    return newExam;
+  }
+
+  // Inventory
+  async getInventory(): Promise<InventoryItem[]> {
+    return await db.select().from(inventory).orderBy(inventory.itemName);
+  }
+  async createInventory(item: InsertInventory): Promise<InventoryItem> {
+    const [newItem] = await db.insert(inventory).values(item).returning();
+    return newItem;
+  }
+
+  // Transactions
+  async getTransactions(): Promise<Transaction[]> {
+    return await db.select().from(transactions).orderBy(transactions.date);
+  }
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    const [newTransaction] = await db.insert(transactions).values(transaction).returning();
+    return newTransaction;
   }
 }
 

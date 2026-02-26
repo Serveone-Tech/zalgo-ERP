@@ -91,6 +91,44 @@ export const feesRelations = relations(fees, ({ one }) => ({
   }),
 }));
 
+// Assignments
+export const assignments = pgTable("assignments", {
+  id: serial("id").primaryKey(),
+  courseId: integer("course_id").references(() => courses.id).notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  dueDate: timestamp("due_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Exams
+export const exams = pgTable("exams", {
+  id: serial("id").primaryKey(),
+  courseId: integer("course_id").references(() => courses.id).notNull(),
+  name: text("name").notNull(),
+  date: timestamp("date").notNull(),
+  maxMarks: integer("max_marks").notNull(),
+});
+
+// Inventory
+export const inventory = pgTable("inventory", {
+  id: serial("id").primaryKey(),
+  itemName: text("item_name").notNull(),
+  quantity: integer("quantity").notNull().default(0),
+  category: text("category"),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+});
+
+// Income/Expense
+export const transactions = pgTable("transactions", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(), // Income, Expense
+  category: text("category").notNull(),
+  amount: integer("amount").notNull(),
+  description: text("description"),
+  date: timestamp("date").defaultNow(),
+});
+
 // Base Schemas
 export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true });
 export const insertStudentSchema = createInsertSchema(students).omit({ id: true, createdAt: true });
@@ -98,6 +136,10 @@ export const insertTeacherSchema = createInsertSchema(teachers).omit({ id: true,
 export const insertCourseSchema = createInsertSchema(courses).omit({ id: true });
 export const insertEnrollmentSchema = createInsertSchema(enrollments).omit({ id: true, enrolledAt: true });
 export const insertFeeSchema = createInsertSchema(fees).omit({ id: true, paymentDate: true });
+export const insertAssignmentSchema = createInsertSchema(assignments).omit({ id: true, createdAt: true });
+export const insertExamSchema = createInsertSchema(exams).omit({ id: true });
+export const insertInventorySchema = createInsertSchema(inventory).omit({ id: true, lastUpdated: true });
+export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, date: true });
 
 // Types
 export type Lead = typeof leads.$inferSelect;
@@ -106,6 +148,10 @@ export type Teacher = typeof teachers.$inferSelect;
 export type Course = typeof courses.$inferSelect;
 export type Enrollment = typeof enrollments.$inferSelect;
 export type Fee = typeof fees.$inferSelect;
+export type Assignment = typeof assignments.$inferSelect;
+export type Exam = typeof exams.$inferSelect;
+export type InventoryItem = typeof inventory.$inferSelect;
+export type Transaction = typeof transactions.$inferSelect;
 
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 export type InsertStudent = z.infer<typeof insertStudentSchema>;
@@ -113,3 +159,7 @@ export type InsertTeacher = z.infer<typeof insertTeacherSchema>;
 export type InsertCourse = z.infer<typeof insertCourseSchema>;
 export type InsertEnrollment = z.infer<typeof insertEnrollmentSchema>;
 export type InsertFee = z.infer<typeof insertFeeSchema>;
+export type InsertAssignment = z.infer<typeof insertAssignmentSchema>;
+export type InsertExam = z.infer<typeof insertExamSchema>;
+export type InsertInventory = z.infer<typeof insertInventorySchema>;
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;

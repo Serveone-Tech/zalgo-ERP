@@ -195,6 +195,86 @@ export async function registerRoutes(
     res.json(stats);
   });
 
+  // Assignments
+  app.get(api.assignments.list.path, async (req, res) => {
+    const results = await storage.getAssignments();
+    res.json(results);
+  });
+  app.post(api.assignments.create.path, async (req, res) => {
+    try {
+      const bodySchema = api.assignments.create.input.extend({
+        courseId: z.coerce.number(),
+        dueDate: z.coerce.date().optional()
+      });
+      const input = bodySchema.parse(req.body);
+      const result = await storage.createAssignment(input);
+      res.status(201).json(result);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join('.') });
+      throw err;
+    }
+  });
+
+  // Exams
+  app.get(api.exams.list.path, async (req, res) => {
+    const results = await storage.getExams();
+    res.json(results);
+  });
+  app.post(api.exams.create.path, async (req, res) => {
+    try {
+      const bodySchema = api.exams.create.input.extend({
+        courseId: z.coerce.number(),
+        date: z.coerce.date(),
+        maxMarks: z.coerce.number()
+      });
+      const input = bodySchema.parse(req.body);
+      const result = await storage.createExam(input);
+      res.status(201).json(result);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join('.') });
+      throw err;
+    }
+  });
+
+  // Inventory
+  app.get(api.inventory.list.path, async (req, res) => {
+    const results = await storage.getInventory();
+    res.json(results);
+  });
+  app.post(api.inventory.create.path, async (req, res) => {
+    try {
+      const bodySchema = api.inventory.create.input.extend({
+        quantity: z.coerce.number()
+      });
+      const input = bodySchema.parse(req.body);
+      const result = await storage.createInventory(input);
+      res.status(201).json(result);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join('.') });
+      throw err;
+    }
+  });
+
+  // Transactions
+  app.get(api.transactions.list.path, async (req, res) => {
+    const results = await storage.getTransactions();
+    res.json(results);
+  });
+  app.post(api.transactions.create.path, async (req, res) => {
+    try {
+      const bodySchema = api.transactions.create.input.extend({
+        amount: z.coerce.number(),
+        date: z.coerce.date().optional()
+      });
+      const input = bodySchema.parse(req.body);
+      const result = await storage.createTransaction(input);
+      res.status(201).json(result);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join('.') });
+      throw err;
+    }
+  });
+
   // Call the seed function
   await seedDatabase().catch(console.error);
 

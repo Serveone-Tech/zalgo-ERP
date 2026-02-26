@@ -5,7 +5,11 @@ import {
   insertTeacherSchema, teachers,
   insertCourseSchema, courses,
   insertEnrollmentSchema, enrollments,
-  insertFeeSchema, fees
+  insertFeeSchema, fees,
+  insertAssignmentSchema, assignments,
+  insertExamSchema, exams,
+  insertInventorySchema, inventory,
+  insertTransactionSchema, transactions
 } from './schema';
 
 export const errorSchemas = {
@@ -49,6 +53,22 @@ export const api = {
     list: { method: 'GET' as const, path: '/api/fees' as const, responses: { 200: z.array(z.custom<typeof fees.$inferSelect>()) } },
     create: { method: 'POST' as const, path: '/api/fees' as const, input: insertFeeSchema, responses: { 201: z.custom<typeof fees.$inferSelect>(), 400: errorSchemas.validation } },
     delete: { method: 'DELETE' as const, path: '/api/fees/:id' as const, responses: { 204: z.void(), 404: errorSchemas.notFound } },
+  },
+  assignments: {
+    list: { method: 'GET' as const, path: '/api/assignments' as const, responses: { 200: z.array(z.custom<typeof assignments.$inferSelect>()) } },
+    create: { method: 'POST' as const, path: '/api/assignments' as const, input: insertAssignmentSchema, responses: { 201: z.custom<typeof assignments.$inferSelect>(), 400: errorSchemas.validation } },
+  },
+  exams: {
+    list: { method: 'GET' as const, path: '/api/exams' as const, responses: { 200: z.array(z.custom<typeof exams.$inferSelect>()) } },
+    create: { method: 'POST' as const, path: '/api/exams' as const, input: insertExamSchema, responses: { 201: z.custom<typeof exams.$inferSelect>(), 400: errorSchemas.validation } },
+  },
+  inventory: {
+    list: { method: 'GET' as const, path: '/api/inventory' as const, responses: { 200: z.array(z.custom<typeof inventory.$inferSelect>()) } },
+    create: { method: 'POST' as const, path: '/api/inventory' as const, input: insertInventorySchema, responses: { 201: z.custom<typeof inventory.$inferSelect>(), 400: errorSchemas.validation } },
+  },
+  transactions: {
+    list: { method: 'GET' as const, path: '/api/transactions' as const, responses: { 200: z.array(z.custom<typeof transactions.$inferSelect>()) } },
+    create: { method: 'POST' as const, path: '/api/transactions' as const, input: insertTransactionSchema, responses: { 201: z.custom<typeof transactions.$inferSelect>(), 400: errorSchemas.validation } },
   },
   dashboard: {
     stats: { 
