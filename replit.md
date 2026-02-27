@@ -20,13 +20,16 @@ A full-stack Institute ERP Management System built for BADAM SINGH Classes by Za
 ├── client/                   # Frontend (React + Vite)
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── layout.tsx        # Responsive sidebar + header with branch selector + notifications
+│   │   │   ├── layout.tsx        # Responsive sidebar + header; nav filtered by canAccess() permissions
 │   │   │   └── ui/               # Shadcn UI components
 │   │   ├── contexts/
-│   │   │   ├── auth.tsx          # Auth context (login/logout/user state)
+│   │   │   ├── auth.tsx          # Auth context: login/logout/user state + hasPermission + canAccess
 │   │   │   └── branch.tsx        # Branch context (selected branch filter)
-│   │   ├── hooks/                # Data fetching hooks
-│   │   │   └── use-dashboard.ts  # Dashboard stats with date/branch filter
+│   │   ├── hooks/
+│   │   │   ├── use-dashboard.ts  # Dashboard stats with date/branch filter
+│   │   │   └── use-permission.ts # usePermission(module) → {canRead, canWrite, canDelete}
+│   │   ├── lib/
+│   │   │   └── permissions.ts    # MODULES list, hasPerm, buildPermissionsArray, parsePermissionsMatrix
 │   │   ├── pages/                # All page components
 │   │   │   ├── login.tsx         # Login page
 │   │   │   ├── dashboard.tsx     # Dashboard with period/date range filters

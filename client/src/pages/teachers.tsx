@@ -3,6 +3,7 @@ import { useTeachers, useCreateTeacher, useDeleteTeacher } from "@/hooks/use-tea
 import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 import { useLocation, useSearch } from "wouter";
 import { DateFilter, DateFilterValue, filterFromSearch, buildApiParams } from "@/components/date-filter";
+import { usePermission } from "@/hooks/use-permission";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
@@ -26,6 +27,7 @@ const TEACHER_FIELDS: FieldDef[] = [
 
 export default function TeachersPage() {
   const searchStr = useSearch();
+  const { canWrite, canDelete } = usePermission("teachers");
   const [filter, setFilter] = useState<DateFilterValue>(() => filterFromSearch(searchStr));
   const apiParams = buildApiParams(filter);
   const { data: teachers, isLoading } = useTeachers(apiParams ? Object.fromEntries(new URLSearchParams(apiParams.slice(1))) : undefined);
@@ -72,21 +74,23 @@ export default function TeachersPage() {
         
         <div className="flex items-center gap-3 flex-wrap">
           <DateFilter value={filter} onChange={setFilter} />
-          <ImportDialog entityName="Teachers" fields={TEACHER_FIELDS} onImport={handleBulkImport} />
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button className="rounded-xl shadow-md shadow-primary/20">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Teacher
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md rounded-2xl">
-              <DialogHeader>
-                <DialogTitle className="font-display">New Teacher Profile</DialogTitle>
-              </DialogHeader>
-              <TeacherForm onSuccess={() => setIsAddOpen(false)} />
-            </DialogContent>
-          </Dialog>
+          {canWrite && <ImportDialog entityName="Teachers" fields={TEACHER_FIELDS} onImport={handleBulkImport} />}
+          {canWrite && (
+            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+              <DialogTrigger asChild>
+                <Button className="rounded-xl shadow-md shadow-primary/20">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Teacher
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md rounded-2xl">
+                <DialogHeader>
+                  <DialogTitle className="font-display">New Teacher Profile</DialogTitle>
+                </DialogHeader>
+                <TeacherForm onSuccess={() => setIsAddOpen(false)} />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
@@ -132,9 +136,11 @@ export default function TeachersPage() {
                       <Button variant="ghost" size="icon" className="rounded-lg text-muted-foreground hover:text-primary" onClick={() => navigate(`/teachers/${teacher.id}`)} data-testid={`btn-view-teacher-${teacher.id}`}>
                         <Eye className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 rounded-lg" onClick={() => handleDelete(teacher.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {canDelete && (
+                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 rounded-lg" onClick={() => handleDelete(teacher.id)} data-testid={`btn-delete-teacher-${teacher.id}`}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

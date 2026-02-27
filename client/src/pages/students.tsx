@@ -4,6 +4,7 @@ import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 import { format } from "date-fns";
 import { useLocation, useSearch } from "wouter";
 import { DateFilter, DateFilterValue, filterFromSearch, buildApiParams } from "@/components/date-filter";
+import { usePermission } from "@/hooks/use-permission";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
@@ -30,6 +31,7 @@ const STUDENT_FIELDS: FieldDef[] = [
 
 export default function StudentsPage() {
   const searchStr = useSearch();
+  const { canWrite, canDelete } = usePermission("students");
   const [filter, setFilter] = useState<DateFilterValue>(() => filterFromSearch(searchStr));
   const apiParams = buildApiParams(filter);
   const { data: students, isLoading } = useStudents(apiParams ? Object.fromEntries(new URLSearchParams(apiParams.slice(1))) : undefined);
@@ -94,22 +96,24 @@ export default function StudentsPage() {
             />
           </div>
           
-          <ImportDialog entityName="Students" fields={STUDENT_FIELDS} onImport={handleBulkImport} />
+          {canWrite && <ImportDialog entityName="Students" fields={STUDENT_FIELDS} onImport={handleBulkImport} />}
 
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button className="rounded-xl shadow-md shadow-primary/20">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Student
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="font-display">Register Student</DialogTitle>
-              </DialogHeader>
-              <StudentForm onSuccess={() => setIsAddOpen(false)} />
-            </DialogContent>
-          </Dialog>
+          {canWrite && (
+            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+              <DialogTrigger asChild>
+                <Button className="rounded-xl shadow-md shadow-primary/20">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Student
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="font-display">Register Student</DialogTitle>
+                </DialogHeader>
+                <StudentForm onSuccess={() => setIsAddOpen(false)} />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
@@ -163,9 +167,11 @@ export default function StudentsPage() {
                       <Button variant="ghost" size="icon" className="rounded-lg text-muted-foreground hover:text-primary" onClick={() => navigate(`/students/${student.id}`)} data-testid={`btn-view-student-${student.id}`}>
                         <Eye className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 rounded-lg" onClick={() => handleDelete(student.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {canDelete && (
+                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 rounded-lg" onClick={() => handleDelete(student.id)} data-testid={`btn-delete-student-${student.id}`}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

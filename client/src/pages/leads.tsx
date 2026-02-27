@@ -5,6 +5,7 @@ import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 import { format } from "date-fns";
 import { useLocation, useSearch } from "wouter";
 import { DateFilter, DateFilterValue, filterFromSearch, buildApiParams } from "@/components/date-filter";
+import { usePermission } from "@/hooks/use-permission";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
@@ -33,6 +34,7 @@ const LEAD_FIELDS: FieldDef[] = [
 
 export default function LeadsPage() {
   const searchStr = useSearch();
+  const { canWrite, canDelete } = usePermission("leads");
   const [filter, setFilter] = useState<DateFilterValue>(() => filterFromSearch(searchStr));
   const apiParams = buildApiParams(filter);
   const { data: leads, isLoading } = useLeads(apiParams ? Object.fromEntries(new URLSearchParams(apiParams.slice(1))) : undefined);
@@ -85,22 +87,24 @@ export default function LeadsPage() {
             />
           </div>
           
-          <ImportDialog entityName="Enquiries" fields={LEAD_FIELDS} onImport={handleBulkImport} />
+          {canWrite && <ImportDialog entityName="Enquiries" fields={LEAD_FIELDS} onImport={handleBulkImport} />}
 
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button className="rounded-xl shadow-md shadow-primary/20">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Enquiry
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md rounded-2xl">
-              <DialogHeader>
-                <DialogTitle className="font-display">New Enquiry</DialogTitle>
-              </DialogHeader>
-              <LeadForm onSuccess={() => setIsAddOpen(false)} />
-            </DialogContent>
-          </Dialog>
+          {canWrite && (
+            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+              <DialogTrigger asChild>
+                <Button className="rounded-xl shadow-md shadow-primary/20">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Enquiry
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md rounded-2xl">
+                <DialogHeader>
+                  <DialogTitle className="font-display">New Enquiry</DialogTitle>
+                </DialogHeader>
+                <LeadForm onSuccess={() => setIsAddOpen(false)} />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
@@ -158,6 +162,7 @@ function LeadActions({ lead }: { lead: any }) {
   const updateMutation = useUpdateLead();
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const { canDelete } = usePermission("leads");
 
   const handleDelete = () => {
     if(confirm("Are you sure you want to delete this lead?")) {
@@ -191,9 +196,11 @@ function LeadActions({ lead }: { lead: any }) {
           <DropdownMenuItem onClick={() => updateStatus('Follow-up')}>Mark Follow-up</DropdownMenuItem>
           <DropdownMenuItem onClick={() => updateStatus('Converted')}>Mark Converted</DropdownMenuItem>
           <DropdownMenuItem onClick={() => updateStatus('Dropped')}>Mark Dropped</DropdownMenuItem>
-          <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:bg-destructive/10">
-            <Trash2 className="h-4 w-4 mr-2" /> Delete
-          </DropdownMenuItem>
+          {canDelete && (
+            <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:bg-destructive/10">
+              <Trash2 className="h-4 w-4 mr-2" /> Delete
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

@@ -21,41 +21,43 @@ import { ChangePasswordDialog } from "@/components/password-dialogs";
 import type { Notification, Branch } from "@shared/schema";
 import { useEffect } from "react";
 
+// module: undefined = always visible (admin items, dashboard)
 const navigation = [
   { group: "Overview", items: [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Dashboard",        href: "/",              icon: LayoutDashboard, module: undefined },
   ]},
   { group: "People", items: [
-    { name: "Enquiries", href: "/leads", icon: UserSquare2 },
-    { name: "Students", href: "/students", icon: Users },
-    { name: "Teachers", href: "/teachers", icon: GraduationCap },
+    { name: "Enquiries",        href: "/leads",         icon: UserSquare2,     module: "leads" },
+    { name: "Students",         href: "/students",      icon: Users,           module: "students" },
+    { name: "Teachers",         href: "/teachers",      icon: GraduationCap,   module: "teachers" },
   ]},
   { group: "Academics", items: [
-    { name: "Courses & Batches", href: "/courses", icon: BookOpen },
-    { name: "Assignments", href: "/assignments", icon: ClipboardList },
-    { name: "Exams", href: "/exams", icon: FileText },
+    { name: "Courses & Batches",href: "/courses",       icon: BookOpen,        module: "courses" },
+    { name: "Assignments",      href: "/assignments",   icon: ClipboardList,   module: "assignments" },
+    { name: "Exams",            href: "/exams",         icon: FileText,        module: "exams" },
   ]},
   { group: "Finance", items: [
-    { name: "Fees & Payments", href: "/fees", icon: CreditCard },
-    { name: "Income / Expense", href: "/transactions", icon: TrendingUp },
+    { name: "Fees & Payments",  href: "/fees",          icon: CreditCard,      module: "fees" },
+    { name: "Income / Expense", href: "/transactions",  icon: TrendingUp,      module: "transactions" },
   ]},
   { group: "Operations", items: [
-    { name: "Inventory", href: "/inventory", icon: Package },
-    { name: "Communications", href: "/communications", icon: MessageSquare },
-    { name: "ID Cards", href: "/idcards", icon: IdCard },
-    { name: "Reports", href: "/reports", icon: BarChart3 },
+    { name: "Inventory",        href: "/inventory",     icon: Package,         module: "inventory" },
+    { name: "Communications",   href: "/communications",icon: MessageSquare,   module: "communications" },
+    { name: "ID Cards",         href: "/idcards",       icon: IdCard,          module: undefined },
+    { name: "Reports",          href: "/reports",       icon: BarChart3,       module: "reports" },
   ]},
   { group: "Administration", items: [
-    { name: "Branches", href: "/branches", icon: GitBranch },
-    { name: "Users & Roles", href: "/users", icon: ShieldCheck },
+    { name: "Branches",         href: "/branches",      icon: GitBranch,       module: undefined },
+    { name: "Users & Roles",    href: "/users",         icon: ShieldCheck,     module: undefined },
   ]},
 ];
 
 function SidebarContent({ onClose }: { onClose?: () => void }) {
   const [location] = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, canAccess } = useAuth();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const initials = user?.name?.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) ?? "AD";
+  const isAdmin = user?.role === "admin";
 
   return (
     <div className="flex flex-col h-full">
@@ -76,29 +78,35 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-3 px-3">
-        {navigation.map((section) => (
-          <div key={section.group} className="mb-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/40 px-3 mb-1.5">{section.group}</p>
-            {section.items.map((item) => {
-              const isActive = location === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={onClose}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 transition-all duration-200 text-sm font-medium ${
-                    isActive
-                      ? "bg-primary text-white shadow-lg shadow-primary/30"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                  }`}
-                >
-                  <item.icon className={`flex-shrink-0 ${isActive ? "text-white" : "text-sidebar-foreground/50"}`} style={{ width: '18px', height: '18px' }} />
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
-          </div>
-        ))}
+        {navigation.map((section) => {
+          const visibleItems = section.items.filter(item =>
+            !item.module || isAdmin || canAccess(item.module)
+          );
+          if (visibleItems.length === 0) return null;
+          return (
+            <div key={section.group} className="mb-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/40 px-3 mb-1.5">{section.group}</p>
+              {visibleItems.map((item) => {
+                const isActive = location === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={onClose}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 transition-all duration-200 text-sm font-medium ${
+                      isActive
+                        ? "bg-primary text-white shadow-lg shadow-primary/30"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    }`}
+                  >
+                    <item.icon className={`flex-shrink-0 ${isActive ? "text-white" : "text-sidebar-foreground/50"}`} style={{ width: '18px', height: '18px' }} />
+                    <span>{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          );
+        })}
       </nav>
 
       <div className="px-3 py-3 border-t border-sidebar-border space-y-1">
