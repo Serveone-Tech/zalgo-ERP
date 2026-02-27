@@ -42,13 +42,13 @@
     --ring: 180 78% 29%;
 
     /* Sidebar — Dark Charcoal matching Zalgo logo dark text */
-    --sidebar-background: 220 25% 12%;
-    --sidebar-foreground: 200 15% 90%;
+    --sidebar: 220 25% 12%;
+    --sidebar-foreground: 210 30% 92%;
     --sidebar-primary: 180 78% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 20% 18%;
-    --sidebar-accent-foreground: 200 15% 90%;
-    --sidebar-border: 220 20% 18%;
+    --sidebar-accent: 220 22% 20%;
+    --sidebar-accent-foreground: 210 30% 95%;
+    --sidebar-border: 220 22% 19%;
     --sidebar-ring: 180 78% 40%;
 
     --radius: 0.75rem;
@@ -92,13 +92,13 @@
     --input: 220 20% 18%;
     --ring: 180 78% 38%;
 
-    --sidebar-background: 220 25% 9%;
-    --sidebar-foreground: 200 15% 90%;
+    --sidebar: 220 25% 9%;
+    --sidebar-foreground: 210 30% 92%;
     --sidebar-primary: 180 78% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 20% 15%;
-    --sidebar-accent-foreground: 200 15% 90%;
-    --sidebar-border: 220 20% 15%;
+    --sidebar-accent: 220 22% 16%;
+    --sidebar-accent-foreground: 210 30% 95%;
+    --sidebar-border: 220 22% 16%;
     --sidebar-ring: 180 78% 40%;
   }
 

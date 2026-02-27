@@ -60,34 +60,41 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   const isAdmin = user?.role === "admin";
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-5 py-5 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="BADAM SINGH Classes" className="h-8 w-auto object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+    <div className="flex flex-col h-full" style={{ backgroundColor: 'hsl(220 25% 12%)' }}>
+      {/* Logo Header */}
+      <div className="flex items-center justify-between px-4 py-4" style={{ borderBottom: '1px solid hsl(220 22% 20%)' }}>
+        <div className="flex items-center gap-3 min-w-0">
+          <img src="/logo.png" alt="BADAM SINGH Classes" className="h-9 w-auto object-contain flex-shrink-0" style={{ filter: 'brightness(0) invert(1)' }} />
+          <div className="min-w-0">
+            <p className="text-xs font-bold leading-tight truncate" style={{ color: 'hsl(210 30% 92%)' }}>BADAM SINGH</p>
+            <p className="text-[10px] leading-tight truncate" style={{ color: 'hsl(210 20% 65%)' }}>Classes</p>
+          </div>
         </div>
         {onClose && (
-          <button onClick={onClose} className="text-sidebar-foreground/60 hover:text-sidebar-foreground p-1 rounded-lg hover:bg-sidebar-accent transition-colors">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="flex-shrink-0 p-1.5 rounded-lg transition-colors" style={{ color: 'hsl(210 20% 65%)' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'hsl(220 22% 20%)')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      <div className="px-5 py-3 border-b border-sidebar-border">
-        <p className="text-xs text-sidebar-foreground/50 uppercase tracking-wider font-semibold">Institute</p>
-        <p className="text-sm font-semibold text-sidebar-foreground mt-0.5">BADAM SINGH Classes</p>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto py-3 px-3">
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-2 px-2" style={{ scrollbarWidth: 'none' }}>
         {navigation.map((section) => {
           const visibleItems = section.items.filter(item => {
             if ((item as any).adminOnly) return isAdmin;
-            if (!item.module) return true; // Dashboard always visible
+            if (!item.module) return true;
             return isAdmin || canAccess(item.module);
           });
           if (visibleItems.length === 0) return null;
           return (
-            <div key={section.group} className="mb-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/40 px-3 mb-1.5">{section.group}</p>
+            <div key={section.group} className="mb-1">
+              {/* Group label */}
+              <p className="px-3 pt-3 pb-1 text-[9px] font-bold uppercase tracking-[0.12em]"
+                style={{ color: 'hsl(210 20% 45%)' }}>
+                {section.group}
+              </p>
               {visibleItems.map((item) => {
                 const isActive = location === item.href;
                 return (
@@ -95,14 +102,23 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                     key={item.name}
                     href={item.href}
                     onClick={onClose}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 transition-all duration-200 text-sm font-medium ${
-                      isActive
-                        ? "bg-primary text-white shadow-lg shadow-primary/30"
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    style={isActive ? {
+                      backgroundColor: 'hsl(180 78% 29%)',
+                      color: '#ffffff',
+                      boxShadow: '0 2px 12px hsl(180 78% 29% / 40%)',
+                    } : {
+                      color: 'hsl(210 25% 78%)',
+                    }}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 transition-all duration-150 text-sm font-medium group ${
+                      isActive ? "" : "hover:bg-white/8"
                     }`}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'hsl(220 22% 20%)'; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = ''; }}
                   >
-                    <item.icon className={`flex-shrink-0 ${isActive ? "text-white" : "text-sidebar-foreground/50"}`} style={{ width: '18px', height: '18px' }} />
-                    <span>{item.name}</span>
+                    <item.icon
+                      style={{ width: '17px', height: '17px', flexShrink: 0, color: isActive ? '#fff' : 'hsl(210 25% 62%)' }}
+                    />
+                    <span className="truncate">{item.name}</span>
                   </Link>
                 );
               })}
@@ -111,31 +127,39 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         })}
       </nav>
 
-      <div className="px-3 py-3 border-t border-sidebar-border space-y-1">
-        <div className="flex items-center gap-3 px-3 py-2 mb-1">
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-            <span className="text-xs font-bold text-primary">{initials}</span>
+      {/* User Footer */}
+      <div className="px-2 py-2" style={{ borderTop: '1px solid hsl(220 22% 20%)' }}>
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs"
+            style={{ backgroundColor: 'hsl(180 78% 25%)', color: 'hsl(180 78% 80%)' }}>
+            {initials}
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.name ?? "Admin"}</p>
-            <p className="text-xs text-sidebar-foreground/50 truncate capitalize">{user?.role ?? "staff"}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold truncate leading-tight" style={{ color: 'hsl(210 30% 92%)' }}>{user?.name ?? "Admin"}</p>
+            <p className="text-[11px] truncate leading-tight capitalize" style={{ color: 'hsl(210 20% 55%)' }}>{user?.role ?? "staff"}</p>
           </div>
         </div>
         <button
           onClick={() => setChangePasswordOpen(true)}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-200"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors"
+          style={{ color: 'hsl(210 25% 65%)' }}
+          onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'hsl(220 22% 20%)'; e.currentTarget.style.color = 'hsl(210 30% 88%)'; }}
+          onMouseLeave={e => { e.currentTarget.style.backgroundColor = ''; e.currentTarget.style.color = 'hsl(210 25% 65%)'; }}
           data-testid="button-sidebar-change-password"
         >
-          <KeyRound className="w-[18px] h-[18px] text-sidebar-foreground/50 shrink-0" />
-          Reset Password
+          <KeyRound style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+          <span>Reset Password</span>
         </button>
         <button
           onClick={logout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-foreground/70 hover:bg-red-500/10 hover:text-red-400 transition-all duration-200"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors"
+          style={{ color: 'hsl(0 60% 65%)' }}
+          onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'hsl(0 60% 15%)'; e.currentTarget.style.color = 'hsl(0 80% 75%)'; }}
+          onMouseLeave={e => { e.currentTarget.style.backgroundColor = ''; e.currentTarget.style.color = 'hsl(0 60% 65%)'; }}
           data-testid="button-logout"
         >
-          <LogOut className="w-[18px] h-[18px] shrink-0" />
-          Sign Out
+          <LogOut style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+          <span>Sign Out</span>
         </button>
       </div>
 
