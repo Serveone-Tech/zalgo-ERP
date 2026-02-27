@@ -127,7 +127,7 @@ export default function ReportsPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Course Enrollment Summary</h2>
           <div className="bg-card rounded-2xl border border-border/50 shadow-sm p-5 space-y-3">
             {dashboard.courseEnrollments.map((ce: any) => {
-              const maxCount = Math.max(...dashboard.courseEnrollments.map((c: any) => c.studentCount));
+              const maxCount = Math.max(...(dashboard.courseEnrollments ?? []).map((c: any) => c.studentCount));
               const pct = maxCount > 0 ? (ce.studentCount / maxCount) * 100 : 0;
               return (
                 <div key={ce.courseName} className="flex items-center gap-4">

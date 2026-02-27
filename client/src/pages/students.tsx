@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useStudents, useCreateStudent, useDeleteStudent } from "@/hooks/use-students";
+import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 import { format } from "date-fns";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -15,12 +16,44 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+const STUDENT_FIELDS: FieldDef[] = [
+  { key: "name", label: "Student Name", required: true, sample: "Priya Sharma" },
+  { key: "enrollmentNo", label: "Enrollment No", required: true, sample: "BSC2026-001" },
+  { key: "email", label: "Email", sample: "priya@example.com" },
+  { key: "phone", label: "Mobile", required: true, sample: "9123456789" },
+  { key: "parentName", label: "Parent Name", sample: "Ramesh Sharma" },
+  { key: "parentPhone", label: "Parent Mobile", sample: "9988776655" },
+  { key: "address", label: "Address", sample: "123, Model Town, Delhi" },
+];
+
 export default function StudentsPage() {
   const { data: students, isLoading } = useStudents();
+  const createStudent = useCreateStudent();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const deleteMutation = useDeleteStudent();
   const { toast } = useToast();
+
+  const handleBulkImport = async (rows: Record<string, string>[]) => {
+    let success = 0; let failed = 0;
+    for (const row of rows) {
+      try {
+        await new Promise<void>((resolve) => {
+          createStudent.mutate({
+            name: row.name || "",
+            enrollmentNo: row.enrollmentNo || `BSC-${Date.now()}-${Math.floor(Math.random() * 999)}`,
+            email: row.email || "",
+            phone: row.phone || "",
+            parentName: row.parentName || "",
+            parentPhone: row.parentPhone || "",
+            address: row.address || "",
+            status: "Active",
+          }, { onSuccess: () => { success++; resolve(); }, onError: () => { failed++; resolve(); } });
+        });
+      } catch { failed++; }
+    }
+    return { success, failed };
+  };
 
   const filtered = students?.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -54,6 +87,8 @@ export default function StudentsPage() {
             />
           </div>
           
+          <ImportDialog entityName="Students" fields={STUDENT_FIELDS} onImport={handleBulkImport} />
+
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
               <Button className="rounded-xl shadow-md shadow-primary/20">

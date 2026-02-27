@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLeads, useCreateLead, useUpdateLead, useDeleteLead } from "@/hooks/use-leads";
 import { useCourses } from "@/hooks/use-courses";
+import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 import { format } from "date-fns";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -19,10 +20,40 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
+const LEAD_FIELDS: FieldDef[] = [
+  { key: "studentName", label: "Student Name", required: true, sample: "Rahul Kumar" },
+  { key: "parentName", label: "Parent Name", sample: "Sanjay Kumar" },
+  { key: "phone", label: "Student Mobile", required: true, sample: "9876543210" },
+  { key: "parentPhone", label: "Parent Mobile", sample: "9988776655" },
+  { key: "address", label: "Address", sample: "123, Model Town, Delhi" },
+  { key: "courseInterested", label: "Interested Course", required: true, sample: "JEE Main & Advanced" },
+];
+
 export default function LeadsPage() {
   const { data: leads, isLoading } = useLeads();
+  const createLead = useCreateLead();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
+
+  const handleBulkImport = async (rows: Record<string, string>[]) => {
+    let success = 0; let failed = 0;
+    for (const row of rows) {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          createLead.mutate({
+            studentName: row.studentName || "",
+            parentName: row.parentName || "",
+            phone: row.phone || "",
+            parentPhone: row.parentPhone || "",
+            address: row.address || "",
+            courseInterested: row.courseInterested || "",
+            status: "New",
+          }, { onSuccess: () => { success++; resolve(); }, onError: () => { failed++; resolve(); } });
+        });
+      } catch { failed++; }
+    }
+    return { success, failed };
+  };
 
   const filteredLeads = leads?.filter(lead => 
     lead.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -48,6 +79,8 @@ export default function LeadsPage() {
             />
           </div>
           
+          <ImportDialog entityName="Enquiries" fields={LEAD_FIELDS} onImport={handleBulkImport} />
+
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
               <Button className="rounded-xl shadow-md shadow-primary/20">

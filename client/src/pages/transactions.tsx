@@ -9,6 +9,7 @@ import { Plus, TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 
 function useTransactions() {
   return useQuery({
@@ -24,12 +25,38 @@ function useTransactions() {
 const incomeCategories = ["Fee Collection", "Donation", "Government Grant", "Book Sales", "Other Income"];
 const expenseCategories = ["Salary", "Rent", "Utilities", "Stationery", "Equipment", "Marketing", "Maintenance", "Other Expense"];
 
+const TRANSACTION_FIELDS: FieldDef[] = [
+  { key: "type", label: "Type (Income/Expense)", required: true, sample: "Income" },
+  { key: "category", label: "Category", required: true, sample: "Fee Collection" },
+  { key: "amount", label: "Amount (₹)", required: true, sample: "5000" },
+  { key: "description", label: "Description", sample: "Monthly fee payment" },
+];
+
 export default function TransactionsPage() {
   const { data: transactions, isLoading } = useTransactions();
   const [isOpen, setIsOpen] = useState(false);
   const [txType, setTxType] = useState<"Income" | "Expense">("Income");
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  const handleBulkImport = async (rows: Record<string, string>[]) => {
+    let success = 0; let failed = 0;
+    for (const row of rows) {
+      try {
+        const type = row.type?.trim();
+        if (type !== "Income" && type !== "Expense") { failed++; continue; }
+        const res = await fetch("/api/transactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type, category: row.category || "", amount: Number(row.amount) || 0, description: row.description || null }),
+          credentials: "include",
+        });
+        if (res.ok) success++; else failed++;
+      } catch { failed++; }
+    }
+    queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+    return { success, failed };
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -71,12 +98,14 @@ export default function TransactionsPage() {
           <h1 className="text-2xl font-display font-bold text-foreground">Income & Expense</h1>
           <p className="text-muted-foreground text-sm mt-1">Track daily income and expenses</p>
         </div>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button className="rounded-xl shadow-md shadow-primary/20" data-testid="button-add-transaction">
-              <Plus className="w-4 h-4 mr-2" /> Add Transaction
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-3">
+          <ImportDialog entityName="Transactions" fields={TRANSACTION_FIELDS} onImport={handleBulkImport} />
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="rounded-xl shadow-md shadow-primary/20" data-testid="button-add-transaction">
+                <Plus className="w-4 h-4 mr-2" /> Add Transaction
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-md rounded-2xl">
             <DialogHeader><DialogTitle>Record Transaction</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 pt-4">
@@ -110,7 +139,8 @@ export default function TransactionsPage() {
               </Button>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       {/* Summary */}

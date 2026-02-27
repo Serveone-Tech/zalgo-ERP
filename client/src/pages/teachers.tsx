@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTeachers, useCreateTeacher, useDeleteTeacher } from "@/hooks/use-teachers";
+import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
@@ -13,11 +14,39 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+const TEACHER_FIELDS: FieldDef[] = [
+  { key: "name", label: "Teacher Name", required: true, sample: "Anil Desai" },
+  { key: "email", label: "Email", sample: "anil@badamsingh.com" },
+  { key: "phone", label: "Mobile", required: true, sample: "9876123450" },
+  { key: "subject", label: "Subject", sample: "Physics" },
+  { key: "qualification", label: "Qualification", sample: "M.Sc Physics, B.Ed" },
+];
+
 export default function TeachersPage() {
   const { data: teachers, isLoading } = useTeachers();
+  const createTeacher = useCreateTeacher();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const deleteMutation = useDeleteTeacher();
   const { toast } = useToast();
+
+  const handleBulkImport = async (rows: Record<string, string>[]) => {
+    let success = 0; let failed = 0;
+    for (const row of rows) {
+      try {
+        await new Promise<void>((resolve) => {
+          createTeacher.mutate({
+            name: row.name || "",
+            email: row.email || "",
+            phone: row.phone || "",
+            subject: row.subject || "",
+            qualification: row.qualification || "",
+            status: "Active",
+          }, { onSuccess: () => { success++; resolve(); }, onError: () => { failed++; resolve(); } });
+        });
+      } catch { failed++; }
+    }
+    return { success, failed };
+  };
 
   const handleDelete = (id: number) => {
     if(confirm("Remove this teacher from the system?")) {
@@ -35,20 +64,23 @@ export default function TeachersPage() {
           <p className="text-muted-foreground text-sm mt-1">Manage teaching staff</p>
         </div>
         
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button className="rounded-xl shadow-md shadow-primary/20">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Teacher
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md rounded-2xl">
-            <DialogHeader>
-              <DialogTitle className="font-display">New Teacher Profile</DialogTitle>
-            </DialogHeader>
-            <TeacherForm onSuccess={() => setIsAddOpen(false)} />
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-3">
+          <ImportDialog entityName="Teachers" fields={TEACHER_FIELDS} onImport={handleBulkImport} />
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button className="rounded-xl shadow-md shadow-primary/20">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Teacher
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="font-display">New Teacher Profile</DialogTitle>
+              </DialogHeader>
+              <TeacherForm onSuccess={() => setIsAddOpen(false)} />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">

@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Package, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 
 function useInventory() {
   return useQuery({
@@ -20,11 +21,34 @@ function useInventory() {
   });
 }
 
+const INVENTORY_FIELDS: FieldDef[] = [
+  { key: "itemName", label: "Item Name", required: true, sample: "Whiteboard Markers" },
+  { key: "category", label: "Category", sample: "Stationery" },
+  { key: "quantity", label: "Quantity", required: true, sample: "50" },
+];
+
 export default function InventoryPage() {
   const { data: items, isLoading } = useInventory();
   const [isOpen, setIsOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  const handleBulkImport = async (rows: Record<string, string>[]) => {
+    let success = 0; let failed = 0;
+    for (const row of rows) {
+      try {
+        const res = await fetch("/api/inventory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ itemName: row.itemName || "", category: row.category || null, quantity: Number(row.quantity) || 0 }),
+          credentials: "include",
+        });
+        if (res.ok) success++; else failed++;
+      } catch { failed++; }
+    }
+    queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+    return { success, failed };
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -54,7 +78,7 @@ export default function InventoryPage() {
     });
   };
 
-  const categories = [...new Set(items?.map((i: any) => i.category).filter(Boolean))];
+  const categories = Array.from(new Set(items?.map((i: any) => i.category).filter(Boolean)));
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -63,12 +87,14 @@ export default function InventoryPage() {
           <h1 className="text-2xl font-display font-bold text-foreground">Inventory</h1>
           <p className="text-muted-foreground text-sm mt-1">Manage institute assets and stocks</p>
         </div>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button className="rounded-xl shadow-md shadow-primary/20" data-testid="button-add-item">
-              <Plus className="w-4 h-4 mr-2" /> Add Item
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-3">
+          <ImportDialog entityName="Inventory" fields={INVENTORY_FIELDS} onImport={handleBulkImport} />
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="rounded-xl shadow-md shadow-primary/20" data-testid="button-add-item">
+                <Plus className="w-4 h-4 mr-2" /> Add Item
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-md rounded-2xl">
             <DialogHeader><DialogTitle>Add Inventory Item</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 pt-4">
@@ -89,7 +115,8 @@ export default function InventoryPage() {
               </Button>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       {/* Summary Cards */}
