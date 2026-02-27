@@ -32,6 +32,10 @@ enrollmentsRouter.post("/", requireAuth, async (req, res) => {
       courseId: z.coerce.number(),
     });
     const input = bodySchema.parse(req.body);
+    const existing = await storage.getEnrollmentByStudentAndCourse(input.studentId, input.courseId);
+    if (existing) {
+      return res.status(409).json({ message: "This student is already enrolled in this course." });
+    }
     const enrollment = await storage.createEnrollment(input);
     res.status(201).json(enrollment);
   } catch (err) {

@@ -2,9 +2,14 @@ import type { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { storage } from "../storage";
 import { z } from "zod";
+import crypto from "crypto";
 
 const ROLES = ["admin", "staff", "accountant", "teacher"] as const;
-const PERMISSIONS = ["leads", "students", "teachers", "courses", "fees", "assignments", "exams", "inventory", "transactions", "communications", "reports"] as const;
+
+// In-memory OTP store: email → { otp, expiry }
+const otpStore = new Map<string, { otp: string; expiry: Date }>();
+// In-memory reset token store: token → { email, expiry }
+const resetTokenStore = new Map<string, { email: string; expiry: Date }>();
 
 export const AuthController = {
   async login(req: Request, res: Response) {
@@ -39,6 +44,93 @@ export const AuthController = {
     if (!user) return res.status(401).json({ message: "User not found" });
     const { passwordHash, ...safeUser } = user;
     res.json(safeUser);
+  },
+
+  // Forgot password: send OTP
+  async forgotPassword(req: Request, res: Response) {
+    const schema = z.object({ email: z.string().email() });
+    try {
+      const { email } = schema.parse(req.body);
+      const user = await storage.getUserByEmail(email);
+      if (!user || !user.isActive) {
+        // Don't reveal if user exists
+        return res.json({ message: "If this email is registered, an OTP has been sent." });
+      }
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      otpStore.set(email.toLowerCase(), { otp, expiry });
+      // Mock send: in production wire to SendGrid/Twilio/WhatsApp
+      console.log(`\n[OTP] Password reset OTP for ${email}: ${otp} (valid 10 min)\n`);
+      res.json({ message: "If this email is registered, an OTP has been sent." });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  },
+
+  // Verify OTP and return a reset token
+  async verifyOtp(req: Request, res: Response) {
+    const schema = z.object({ email: z.string().email(), otp: z.string().length(6) });
+    try {
+      const { email, otp } = schema.parse(req.body);
+      const record = otpStore.get(email.toLowerCase());
+      if (!record || record.otp !== otp || record.expiry < new Date()) {
+        return res.status(400).json({ message: "Invalid or expired OTP. Please try again." });
+      }
+      otpStore.delete(email.toLowerCase());
+      const token = crypto.randomBytes(32).toString("hex");
+      resetTokenStore.set(token, { email: email.toLowerCase(), expiry: new Date(Date.now() + 15 * 60 * 1000) });
+      res.json({ resetToken: token });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  },
+
+  // Reset password using the token from verifyOtp
+  async resetPasswordWithToken(req: Request, res: Response) {
+    const schema = z.object({
+      resetToken: z.string(),
+      newPassword: z.string().min(6, "Password must be at least 6 characters"),
+    });
+    try {
+      const { resetToken, newPassword } = schema.parse(req.body);
+      const record = resetTokenStore.get(resetToken);
+      if (!record || record.expiry < new Date()) {
+        return res.status(400).json({ message: "Reset link has expired. Please request a new OTP." });
+      }
+      const user = await storage.getUserByEmail(record.email);
+      if (!user) return res.status(404).json({ message: "User not found." });
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await storage.updateUser(user.id, { passwordHash } as any);
+      resetTokenStore.delete(resetToken);
+      res.json({ message: "Password reset successfully. You can now log in." });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  },
+
+  // Change password for logged-in user
+  async changePassword(req: Request, res: Response) {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const schema = z.object({
+      currentPassword: z.string().min(1, "Current password is required"),
+      newPassword: z.string().min(6, "New password must be at least 6 characters"),
+    });
+    try {
+      const { currentPassword, newPassword } = schema.parse(req.body);
+      const user = await storage.getUser(req.session.userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!valid) return res.status(400).json({ message: "Current password is incorrect" });
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await storage.updateUser(user.id, { passwordHash } as any);
+      res.json({ message: "Password changed successfully." });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
   },
 
   // User management (admin only)
@@ -114,13 +206,11 @@ export const AuthController = {
   },
 };
 
-// Middleware: require authentication
 export function requireAuth(req: Request, res: Response, next: any) {
   if (!req.session.userId) return res.status(401).json({ message: "Authentication required" });
   next();
 }
 
-// Middleware: require admin role
 export function requireAdmin(req: Request, res: Response, next: any) {
   if (!req.session.userId) return res.status(401).json({ message: "Authentication required" });
   if (req.session.userRole !== "admin") return res.status(403).json({ message: "Admin access required" });

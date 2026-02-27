@@ -59,6 +59,7 @@ export interface IStorage {
 
   // Enrollments
   getEnrollments(): Promise<Enrollment[]>;
+  getEnrollmentByStudentAndCourse(studentId: number, courseId: number): Promise<Enrollment | undefined>;
   createEnrollment(enrollment: InsertEnrollment): Promise<Enrollment>;
   deleteEnrollment(id: number): Promise<void>;
 
@@ -267,6 +268,10 @@ export class DatabaseStorage implements IStorage {
   // Enrollments
   async getEnrollments(): Promise<Enrollment[]> {
     return await db.select().from(enrollments);
+  }
+  async getEnrollmentByStudentAndCourse(studentId: number, courseId: number): Promise<Enrollment | undefined> {
+    const [e] = await db.select().from(enrollments).where(and(eq(enrollments.studentId, studentId), eq(enrollments.courseId, courseId)));
+    return e;
   }
   async createEnrollment(enrollment: InsertEnrollment): Promise<Enrollment> {
     const [e] = await db.insert(enrollments).values(enrollment).returning();

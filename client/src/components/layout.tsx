@@ -5,15 +5,19 @@ import { queryClient } from "@/lib/queryClient";
 import {
   LayoutDashboard, Users, UserSquare2, BookOpen, CreditCard, GraduationCap,
   Bell, X, Menu, ClipboardList, FileText, Package, TrendingUp, MessageSquare,
-  IdCard, BarChart3, GitBranch, ShieldCheck, LogOut, ChevronDown
+  IdCard, BarChart3, GitBranch, ShieldCheck, LogOut, KeyRound, ChevronDown, User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/auth";
 import { useBranch } from "@/contexts/branch";
+import { ChangePasswordDialog } from "@/components/password-dialogs";
 import type { Notification, Branch } from "@shared/schema";
 import { useEffect } from "react";
 
@@ -50,6 +54,7 @@ const navigation = [
 function SidebarContent({ onClose }: { onClose?: () => void }) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const initials = user?.name?.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) ?? "AD";
 
   return (
@@ -98,23 +103,35 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       <div className="px-4 py-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
             <span className="text-xs font-bold text-primary">{initials}</span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.name ?? "Admin"}</p>
             <p className="text-xs text-sidebar-foreground/50 truncate capitalize">{user?.role ?? "staff"}</p>
           </div>
-          <button
-            onClick={logout}
-            title="Logout"
-            className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors p-1"
-            data-testid="button-logout"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setChangePasswordOpen(true)}
+              title="Change Password"
+              className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors p-1"
+              data-testid="button-sidebar-change-password"
+            >
+              <KeyRound className="w-4 h-4" />
+            </button>
+            <button
+              onClick={logout}
+              title="Logout"
+              className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors p-1"
+              data-testid="button-logout"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
+
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
     </div>
   );
 }
@@ -136,13 +153,6 @@ function NotificationBell() {
     mutationFn: (id: number) => fetch(`/api/notifications/${id}/read`, { method: "PUT", credentials: "include" }).then(r => r.json()),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/notifications"] }),
   });
-
-  const typeColor: Record<string, string> = {
-    info: "text-blue-600 bg-blue-50 border-blue-200",
-    warning: "text-yellow-600 bg-yellow-50 border-yellow-200",
-    danger: "text-red-600 bg-red-50 border-red-200",
-    success: "text-green-600 bg-green-50 border-green-200",
-  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -215,6 +225,59 @@ function BranchSelector() {
   );
 }
 
+function UserDropdown() {
+  const { user, logout } = useAuth();
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const initials = user?.name?.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) ?? "AD";
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="flex items-center gap-2.5 rounded-xl px-2 py-1 hover:bg-accent/60 transition-colors cursor-pointer group"
+            data-testid="button-user-menu"
+          >
+            <div className="flex flex-col items-end hidden sm:flex">
+              <span className="text-sm font-semibold text-foreground leading-tight">{user?.name ?? "Admin"}</span>
+              <span className="text-[11px] text-muted-foreground capitalize">{user?.role ?? "staff"}</span>
+            </div>
+            <Avatar className="h-9 w-9 border-2 border-primary/20 shadow-sm">
+              <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">{initials}</AvatarFallback>
+            </Avatar>
+            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors hidden sm:block" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52 rounded-xl shadow-lg">
+          <div className="px-3 py-2 border-b">
+            <p className="text-sm font-semibold">{user?.name}</p>
+            <p className="text-xs text-muted-foreground capitalize">{user?.email}</p>
+          </div>
+          <DropdownMenuItem
+            className="gap-2 cursor-pointer rounded-lg mx-1 my-1"
+            onClick={() => setChangePasswordOpen(true)}
+            data-testid="menu-item-change-password"
+          >
+            <KeyRound className="w-4 h-4 text-muted-foreground" />
+            Change Password
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="gap-2 cursor-pointer text-destructive focus:text-destructive rounded-lg mx-1 mb-1"
+            onClick={logout}
+            data-testid="menu-item-signout"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
+    </>
+  );
+}
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [location] = useLocation();
@@ -229,7 +292,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }, [mobileSidebarOpen]);
 
   const currentPage = navigation.flatMap(s => s.items).find(item => item.href === location)?.name || "Dashboard";
-  const initials = user?.name?.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) ?? "AD";
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -264,15 +326,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <BranchSelector />
             <NotificationBell />
             <div className="h-7 w-[1px] bg-border/50 hidden sm:block" />
-            <div className="flex items-center gap-2.5">
-              <div className="flex flex-col items-end hidden sm:flex">
-                <span className="text-sm font-semibold text-foreground leading-tight">{user?.name ?? "Admin"}</span>
-                <span className="text-[11px] text-muted-foreground capitalize">{user?.role ?? "staff"}</span>
-              </div>
-              <Avatar className="h-9 w-9 border-2 border-primary/20 shadow-sm">
-                <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">{initials}</AvatarFallback>
-              </Avatar>
-            </div>
+            <UserDropdown />
           </div>
         </header>
 

@@ -7,6 +7,14 @@ router.post("/login", AuthController.login);
 router.post("/logout", AuthController.logout);
 router.get("/me", AuthController.me);
 
+// Forgot password / OTP flow (public)
+router.post("/forgot-password", AuthController.forgotPassword);
+router.post("/verify-otp", AuthController.verifyOtp);
+router.post("/reset-password-with-token", AuthController.resetPasswordWithToken);
+
+// Change password for logged-in user
+router.post("/change-password", requireAuth, AuthController.changePassword);
+
 // User management (admin only)
 router.get("/users", requireAuth, requireAdmin, AuthController.listUsers);
 router.post("/users", requireAuth, requireAdmin, AuthController.createUser);

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, GraduationCap } from "lucide-react";
+import { ForgotPasswordDialog } from "@/components/password-dialogs";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("admin@badamsingh.com");
   const [password, setPassword] = useState("admin123");
   const [loading, setLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +63,17 @@ export default function LoginPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-white/70 text-sm">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-white/70 text-sm">Password</Label>
+                  <button
+                    type="button"
+                    onClick={() => setForgotOpen(true)}
+                    className="text-xs text-primary/80 hover:text-primary transition-colors"
+                    data-testid="link-forgot-password"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
                 <Input
                   id="password"
                   data-testid="input-password"
@@ -93,6 +105,8 @@ export default function LoginPage() {
           Powered by Zalgo Infotech &bull; v2.0
         </p>
       </div>
+
+      <ForgotPasswordDialog open={forgotOpen} onOpenChange={setForgotOpen} />
     </div>
   );
 }
