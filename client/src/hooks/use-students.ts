@@ -2,11 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { type InsertStudent } from "@shared/schema";
 
-export function useStudents() {
+export function useStudents(params?: Record<string, string>) {
+  const qs = params && Object.keys(params).length ? "?" + new URLSearchParams(params).toString() : "";
   return useQuery({
-    queryKey: [api.students.list.path],
+    queryKey: [api.students.list.path, params],
     queryFn: async () => {
-      const res = await fetch(api.students.list.path, { credentials: "include" });
+      const res = await fetch(`${api.students.list.path}${qs}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch students");
       return api.students.list.responses[200].parse(await res.json());
     },

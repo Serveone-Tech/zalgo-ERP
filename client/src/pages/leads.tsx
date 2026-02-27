@@ -3,7 +3,8 @@ import { useLeads, useCreateLead, useUpdateLead, useDeleteLead } from "@/hooks/u
 import { useCourses } from "@/hooks/use-courses";
 import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 import { format } from "date-fns";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
+import { DateFilter, DateFilterValue, filterFromSearch, buildApiParams } from "@/components/date-filter";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
@@ -31,7 +32,10 @@ const LEAD_FIELDS: FieldDef[] = [
 ];
 
 export default function LeadsPage() {
-  const { data: leads, isLoading } = useLeads();
+  const searchStr = useSearch();
+  const [filter, setFilter] = useState<DateFilterValue>(() => filterFromSearch(searchStr));
+  const apiParams = buildApiParams(filter);
+  const { data: leads, isLoading } = useLeads(apiParams ? Object.fromEntries(new URLSearchParams(apiParams.slice(1))) : undefined);
   const createLead = useCreateLead();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -69,8 +73,9 @@ export default function LeadsPage() {
           <p className="text-muted-foreground text-sm mt-1">Manage prospective student leads</p>
         </div>
         
-        <div className="flex w-full sm:w-auto items-center gap-3">
-          <div className="relative flex-1 sm:w-64">
+        <div className="flex w-full sm:w-auto items-center gap-3 flex-wrap">
+          <DateFilter value={filter} onChange={setFilter} />
+          <div className="relative flex-1 sm:w-56">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
               placeholder="Search leads..." 

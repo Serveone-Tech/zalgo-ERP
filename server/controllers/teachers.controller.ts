@@ -1,11 +1,18 @@
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { api } from "@shared/routes";
+import { parsePeriodToDateRange } from "../utils/period";
 import { z } from "zod";
 
 export const TeachersController = {
   async list(req: Request, res: Response) {
-    const teachers = await storage.getTeachers();
+    const { period, from, to, branchId } = req.query as Record<string, string>;
+    const { from: fromDate, to: toDate } = parsePeriodToDateRange(period, from, to);
+    const teachers = await storage.getTeachers({
+      branchId: branchId ? Number(branchId) : undefined,
+      from: fromDate,
+      to: toDate,
+    });
     res.json(teachers);
   },
 

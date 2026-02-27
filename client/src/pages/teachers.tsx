@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useTeachers, useCreateTeacher, useDeleteTeacher } from "@/hooks/use-teachers";
 import { ImportDialog, type FieldDef } from "@/components/import-dialog";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
+import { DateFilter, DateFilterValue, filterFromSearch, buildApiParams } from "@/components/date-filter";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
@@ -24,7 +25,10 @@ const TEACHER_FIELDS: FieldDef[] = [
 ];
 
 export default function TeachersPage() {
-  const { data: teachers, isLoading } = useTeachers();
+  const searchStr = useSearch();
+  const [filter, setFilter] = useState<DateFilterValue>(() => filterFromSearch(searchStr));
+  const apiParams = buildApiParams(filter);
+  const { data: teachers, isLoading } = useTeachers(apiParams ? Object.fromEntries(new URLSearchParams(apiParams.slice(1))) : undefined);
   const createTeacher = useCreateTeacher();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const deleteMutation = useDeleteTeacher();
@@ -66,7 +70,8 @@ export default function TeachersPage() {
           <p className="text-muted-foreground text-sm mt-1">Manage teaching staff</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <DateFilter value={filter} onChange={setFilter} />
           <ImportDialog entityName="Teachers" fields={TEACHER_FIELDS} onImport={handleBulkImport} />
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>

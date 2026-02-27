@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { api } from "@shared/routes";
+import { parsePeriodToDateRange } from "../utils/period";
 import { z } from "zod";
 
 export const InventoryController = {
@@ -77,40 +78,9 @@ export const CommunicationsController = {
 
 export const DashboardController = {
   async stats(req: Request, res: Response) {
-    // Parse date range filters
     const { period, from, to, branchId } = req.query as Record<string, string>;
-    
-    let fromDate: Date | undefined;
-    let toDate: Date | undefined;
-    
-    if (period) {
-      const now = new Date();
-      toDate = now;
-      switch (period) {
-        case "today":
-          fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          break;
-        case "week":
-          fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case "15days":
-          fromDate = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
-          break;
-        case "month":
-          fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
-          break;
-        case "year":
-          fromDate = new Date(now.getFullYear(), 0, 1);
-          break;
-        case "custom":
-          fromDate = from ? new Date(from) : undefined;
-          toDate = to ? new Date(to) : undefined;
-          break;
-      }
-    }
-    
+    const { from: fromDate, to: toDate } = parsePeriodToDateRange(period, from, to);
     const branchFilter = branchId ? Number(branchId) : undefined;
-    
     const stats = await storage.getDashboardStats({ from: fromDate, to: toDate, branchId: branchFilter });
     res.json(stats);
   },

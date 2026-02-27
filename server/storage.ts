@@ -29,21 +29,21 @@ export interface IStorage {
   deleteUser(id: number): Promise<void>;
 
   // Leads
-  getLeads(branchId?: number): Promise<Lead[]>;
+  getLeads(opts?: { branchId?: number; from?: Date; to?: Date }): Promise<Lead[]>;
   getLead(id: number): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: number, lead: Partial<InsertLead>): Promise<Lead>;
   deleteLead(id: number): Promise<void>;
 
   // Students
-  getStudents(branchId?: number): Promise<Student[]>;
+  getStudents(opts?: { branchId?: number; from?: Date; to?: Date }): Promise<Student[]>;
   getStudent(id: number): Promise<Student | undefined>;
   createStudent(student: InsertStudent): Promise<Student>;
   updateStudent(id: number, student: Partial<InsertStudent>): Promise<Student>;
   deleteStudent(id: number): Promise<void>;
 
   // Teachers
-  getTeachers(branchId?: number): Promise<Teacher[]>;
+  getTeachers(opts?: { branchId?: number; from?: Date; to?: Date }): Promise<Teacher[]>;
   getTeacher(id: number): Promise<Teacher | undefined>;
   createTeacher(teacher: InsertTeacher): Promise<Teacher>;
   updateTeacher(id: number, teacher: Partial<InsertTeacher>): Promise<Teacher>;
@@ -63,7 +63,7 @@ export interface IStorage {
   deleteEnrollment(id: number): Promise<void>;
 
   // Fees
-  getFees(branchId?: number): Promise<Fee[]>;
+  getFees(opts?: { branchId?: number; from?: Date; to?: Date }): Promise<Fee[]>;
   createFee(fee: InsertFee): Promise<Fee>;
   deleteFee(id: number): Promise<void>;
 
@@ -164,11 +164,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Leads
-  async getLeads(branchId?: number): Promise<Lead[]> {
-    if (branchId) {
-      return await db.select().from(leads).where(eq(leads.branchId, branchId)).orderBy(desc(leads.createdAt));
-    }
-    return await db.select().from(leads).orderBy(desc(leads.createdAt));
+  async getLeads(opts?: { branchId?: number; from?: Date; to?: Date }): Promise<Lead[]> {
+    const { branchId, from, to } = opts || {};
+    const conditions = [];
+    if (branchId) conditions.push(eq(leads.branchId, branchId));
+    if (from) conditions.push(gte(leads.createdAt, from));
+    if (to) conditions.push(lte(leads.createdAt, to));
+    return await db.select().from(leads).where(conditions.length ? and(...conditions) : undefined).orderBy(desc(leads.createdAt));
   }
   async getLead(id: number): Promise<Lead | undefined> {
     const [l] = await db.select().from(leads).where(eq(leads.id, id));
@@ -187,11 +189,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Students
-  async getStudents(branchId?: number): Promise<Student[]> {
-    if (branchId) {
-      return await db.select().from(students).where(eq(students.branchId, branchId)).orderBy(desc(students.createdAt));
-    }
-    return await db.select().from(students).orderBy(desc(students.createdAt));
+  async getStudents(opts?: { branchId?: number; from?: Date; to?: Date }): Promise<Student[]> {
+    const { branchId, from, to } = opts || {};
+    const conditions = [];
+    if (branchId) conditions.push(eq(students.branchId, branchId));
+    if (from) conditions.push(gte(students.createdAt, from));
+    if (to) conditions.push(lte(students.createdAt, to));
+    return await db.select().from(students).where(conditions.length ? and(...conditions) : undefined).orderBy(desc(students.createdAt));
   }
   async getStudent(id: number): Promise<Student | undefined> {
     const [s] = await db.select().from(students).where(eq(students.id, id));
@@ -210,11 +214,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Teachers
-  async getTeachers(branchId?: number): Promise<Teacher[]> {
-    if (branchId) {
-      return await db.select().from(teachers).where(eq(teachers.branchId, branchId)).orderBy(desc(teachers.createdAt));
-    }
-    return await db.select().from(teachers).orderBy(desc(teachers.createdAt));
+  async getTeachers(opts?: { branchId?: number; from?: Date; to?: Date }): Promise<Teacher[]> {
+    const { branchId, from, to } = opts || {};
+    const conditions = [];
+    if (branchId) conditions.push(eq(teachers.branchId, branchId));
+    if (from) conditions.push(gte(teachers.createdAt, from));
+    if (to) conditions.push(lte(teachers.createdAt, to));
+    return await db.select().from(teachers).where(conditions.length ? and(...conditions) : undefined).orderBy(desc(teachers.createdAt));
   }
   async getTeacher(id: number): Promise<Teacher | undefined> {
     const [t] = await db.select().from(teachers).where(eq(teachers.id, id));
@@ -271,11 +277,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Fees
-  async getFees(branchId?: number): Promise<Fee[]> {
-    if (branchId) {
-      return await db.select().from(fees).where(eq(fees.branchId, branchId));
-    }
-    return await db.select().from(fees);
+  async getFees(opts?: { branchId?: number; from?: Date; to?: Date }): Promise<Fee[]> {
+    const { branchId, from, to } = opts || {};
+    const conditions = [];
+    if (branchId) conditions.push(eq(fees.branchId, branchId));
+    if (from) conditions.push(gte(fees.paymentDate, from));
+    if (to) conditions.push(lte(fees.paymentDate, to));
+    return await db.select().from(fees).where(conditions.length ? and(...conditions) : undefined).orderBy(desc(fees.paymentDate));
   }
   async createFee(fee: InsertFee): Promise<Fee> {
     const [f] = await db.insert(fees).values(fee).returning();

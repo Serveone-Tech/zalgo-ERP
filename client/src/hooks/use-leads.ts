@@ -3,11 +3,12 @@ import { api, buildUrl } from "@shared/routes";
 import { type InsertLead } from "@shared/schema";
 import { z } from "zod";
 
-export function useLeads() {
+export function useLeads(params?: Record<string, string>) {
+  const qs = params && Object.keys(params).length ? "?" + new URLSearchParams(params).toString() : "";
   return useQuery({
-    queryKey: [api.leads.list.path],
+    queryKey: [api.leads.list.path, params],
     queryFn: async () => {
-      const res = await fetch(api.leads.list.path, { credentials: "include" });
+      const res = await fetch(`${api.leads.list.path}${qs}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch leads");
       return api.leads.list.responses[200].parse(await res.json());
     },

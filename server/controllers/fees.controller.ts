@@ -1,11 +1,18 @@
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { api } from "@shared/routes";
+import { parsePeriodToDateRange } from "../utils/period";
 import { z } from "zod";
 
 export const FeesController = {
   async list(req: Request, res: Response) {
-    const fees = await storage.getFees();
+    const { period, from, to, branchId } = req.query as Record<string, string>;
+    const { from: fromDate, to: toDate } = parsePeriodToDateRange(period, from, to);
+    const fees = await storage.getFees({
+      branchId: branchId ? Number(branchId) : undefined,
+      from: fromDate,
+      to: toDate,
+    });
     res.json(fees);
   },
 

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useSearch } from "wouter";
+import { DateFilter, DateFilterValue, filterFromSearch, buildApiParams } from "@/components/date-filter";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -23,14 +25,27 @@ const statusBadge: Record<string, { label: string; class: string }> = {
 };
 
 export default function FeesPage() {
+  const searchStr = useSearch();
   const { toast } = useToast();
   const [addFeeOpen, setAddFeeOpen] = useState(false);
   const [addPlanOpen, setAddPlanOpen] = useState(false);
   const [payInstallmentOpen, setPayInstallmentOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<FeeInstallment | null>(null);
   const [tab, setTab] = useState("payments");
+  const [filter, setFilter] = useState<DateFilterValue>(() => filterFromSearch(searchStr));
 
-  const { data: fees = [], isLoading: feesLoading } = useQuery<Fee[]>({ queryKey: ["/api/fees"] });
+  const apiParamsStr = buildApiParams(filter);
+  const apiParamsObj = apiParamsStr ? Object.fromEntries(new URLSearchParams(apiParamsStr.slice(1))) : {};
+  const feesQs = apiParamsStr ? `${apiParamsStr}` : "";
+
+  const { data: fees = [], isLoading: feesLoading } = useQuery<Fee[]>({
+    queryKey: ["/api/fees", apiParamsObj],
+    queryFn: async () => {
+      const res = await fetch(`/api/fees${feesQs}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch fees");
+      return res.json();
+    },
+  });
   const { data: feePlans = [], isLoading: plansLoading } = useQuery<FeePlan[]>({ queryKey: ["/api/fee-plans"] });
   const { data: installments = [], isLoading: instLoading } = useQuery<FeeInstallment[]>({ queryKey: ["/api/fee-installments"] });
   const { data: students = [] } = useQuery<Student[]>({ queryKey: ["/api/students"] });
@@ -40,12 +55,13 @@ export default function FeesPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Fees & Payments</h1>
           <p className="text-muted-foreground text-sm mt-1">Manage student payments and installment plans</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap items-center">
+          <DateFilter value={filter} onChange={setFilter} />
           <Button variant="outline" onClick={() => setAddPlanOpen(true)} data-testid="button-add-fee-plan" className="gap-2">
             <Calendar className="w-4 h-4" /> Fee Plan
           </Button>

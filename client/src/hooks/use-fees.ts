@@ -2,11 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { type InsertFee } from "@shared/schema";
 
-export function useFees() {
+export function useFees(params?: Record<string, string>) {
+  const qs = params && Object.keys(params).length ? "?" + new URLSearchParams(params).toString() : "";
   return useQuery({
-    queryKey: [api.fees.list.path],
+    queryKey: [api.fees.list.path, params],
     queryFn: async () => {
-      const res = await fetch(api.fees.list.path, { credentials: "include" });
+      const res = await fetch(`${api.fees.list.path}${qs}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch fees");
       return api.fees.list.responses[200].parse(await res.json());
     },

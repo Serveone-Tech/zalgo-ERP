@@ -2,7 +2,8 @@ import { useState, useRef } from "react";
 import { useStudents, useCreateStudent, useDeleteStudent } from "@/hooks/use-students";
 import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 import { format } from "date-fns";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
+import { DateFilter, DateFilterValue, filterFromSearch, buildApiParams } from "@/components/date-filter";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
@@ -28,7 +29,10 @@ const STUDENT_FIELDS: FieldDef[] = [
 ];
 
 export default function StudentsPage() {
-  const { data: students, isLoading } = useStudents();
+  const searchStr = useSearch();
+  const [filter, setFilter] = useState<DateFilterValue>(() => filterFromSearch(searchStr));
+  const apiParams = buildApiParams(filter);
+  const { data: students, isLoading } = useStudents(apiParams ? Object.fromEntries(new URLSearchParams(apiParams.slice(1))) : undefined);
   const createStudent = useCreateStudent();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -78,8 +82,9 @@ export default function StudentsPage() {
           <p className="text-muted-foreground text-sm mt-1">Manage enrolled students</p>
         </div>
         
-        <div className="flex w-full sm:w-auto items-center gap-3">
-          <div className="relative flex-1 sm:w-64">
+        <div className="flex w-full sm:w-auto items-center gap-3 flex-wrap">
+          <DateFilter value={filter} onChange={setFilter} />
+          <div className="relative flex-1 sm:w-56">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
               placeholder="Search by name or reg no..." 
