@@ -1,0 +1,128 @@
+import type { Request, Response } from "express";
+import bcrypt from "bcrypt";
+import { storage } from "../storage";
+import { z } from "zod";
+
+const ROLES = ["admin", "staff", "accountant", "teacher"] as const;
+const PERMISSIONS = ["leads", "students", "teachers", "courses", "fees", "assignments", "exams", "inventory", "transactions", "communications", "reports"] as const;
+
+export const AuthController = {
+  async login(req: Request, res: Response) {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ message: "Email and password required" });
+
+    const user = await storage.getUserByEmail(email);
+    if (!user || !user.isActive) return res.status(401).json({ message: "Invalid credentials" });
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) return res.status(401).json({ message: "Invalid credentials" });
+
+    req.session.userId = user.id;
+    req.session.userRole = user.role;
+    req.session.userBranchId = user.branchId;
+    req.session.userName = user.name;
+    req.session.userEmail = user.email;
+    req.session.userPermissions = user.permissions ?? [];
+
+    const { passwordHash, ...safeUser } = user;
+    res.json({ user: safeUser });
+  },
+
+  async logout(req: Request, res: Response) {
+    req.session.destroy(() => {});
+    res.json({ message: "Logged out" });
+  },
+
+  async me(req: Request, res: Response) {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const user = await storage.getUser(req.session.userId);
+    if (!user) return res.status(401).json({ message: "User not found" });
+    const { passwordHash, ...safeUser } = user;
+    res.json(safeUser);
+  },
+
+  // User management (admin only)
+  async listUsers(req: Request, res: Response) {
+    const users = await storage.getUsers();
+    res.json(users);
+  },
+
+  async createUser(req: Request, res: Response) {
+    const schema = z.object({
+      name: z.string().min(1),
+      email: z.string().email(),
+      password: z.string().min(6),
+      role: z.enum(ROLES),
+      permissions: z.array(z.string()).optional().default([]),
+      branchId: z.number().optional().nullable(),
+      isActive: z.boolean().optional().default(true),
+    });
+    try {
+      const data = schema.parse(req.body);
+      const existing = await storage.getUserByEmail(data.email);
+      if (existing) return res.status(400).json({ message: "Email already in use" });
+
+      const passwordHash = await bcrypt.hash(data.password, 10);
+      const user = await storage.createUser({
+        name: data.name,
+        email: data.email,
+        passwordHash,
+        role: data.role,
+        permissions: data.permissions,
+        branchId: data.branchId ?? null,
+        isActive: data.isActive,
+      });
+      const { passwordHash: _, ...safeUser } = user;
+      res.status(201).json(safeUser);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  },
+
+  async updateUser(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    const schema = z.object({
+      name: z.string().optional(),
+      role: z.enum(ROLES).optional(),
+      permissions: z.array(z.string()).optional(),
+      branchId: z.number().optional().nullable(),
+      isActive: z.boolean().optional(),
+      password: z.string().min(6).optional(),
+    });
+    try {
+      const data = schema.parse(req.body);
+      const updates: any = { ...data };
+      if (data.password) {
+        updates.passwordHash = await bcrypt.hash(data.password, 10);
+        delete updates.password;
+      }
+      const user = await storage.updateUser(id, updates);
+      const { passwordHash, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  },
+
+  async deleteUser(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    if (id === req.session.userId) return res.status(400).json({ message: "Cannot delete your own account" });
+    await storage.deleteUser(id);
+    res.status(204).send();
+  },
+};
+
+// Middleware: require authentication
+export function requireAuth(req: Request, res: Response, next: any) {
+  if (!req.session.userId) return res.status(401).json({ message: "Authentication required" });
+  next();
+}
+
+// Middleware: require admin role
+export function requireAdmin(req: Request, res: Response, next: any) {
+  if (!req.session.userId) return res.status(401).json({ message: "Authentication required" });
+  if (req.session.userRole !== "admin") return res.status(403).json({ message: "Admin access required" });
+  next();
+}

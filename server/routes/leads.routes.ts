@@ -1,11 +1,10 @@
 import { Router } from "express";
 import { LeadsController } from "../controllers/leads.controller";
+import { requireAuth } from "../controllers/auth.controller";
 
 const router = Router();
-
-router.get("/", LeadsController.list);
-router.post("/", LeadsController.create);
-router.put("/:id", LeadsController.update);
-router.delete("/:id", LeadsController.remove);
-
+router.get("/", requireAuth, LeadsController.list);
+router.post("/", requireAuth, LeadsController.create);
+router.put("/:id", requireAuth, LeadsController.update);
+router.delete("/:id", requireAuth, LeadsController.remove);
 export default router;

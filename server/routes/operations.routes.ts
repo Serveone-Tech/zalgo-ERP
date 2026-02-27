@@ -1,24 +1,20 @@
 import { Router } from "express";
-import {
-  InventoryController,
-  TransactionsController,
-  CommunicationsController,
-  DashboardController,
-} from "../controllers/operations.controller";
+import { InventoryController, TransactionsController, CommunicationsController, DashboardController } from "../controllers/operations.controller";
+import { requireAuth } from "../controllers/auth.controller";
 
 const inventoryRouter = Router();
-inventoryRouter.get("/", InventoryController.list);
-inventoryRouter.post("/", InventoryController.create);
+inventoryRouter.get("/", requireAuth, InventoryController.list);
+inventoryRouter.post("/", requireAuth, InventoryController.create);
 
 const transactionsRouter = Router();
-transactionsRouter.get("/", TransactionsController.list);
-transactionsRouter.post("/", TransactionsController.create);
+transactionsRouter.get("/", requireAuth, TransactionsController.list);
+transactionsRouter.post("/", requireAuth, TransactionsController.create);
 
 const communicationsRouter = Router();
-communicationsRouter.get("/", CommunicationsController.list);
-communicationsRouter.post("/send", CommunicationsController.send);
+communicationsRouter.get("/", requireAuth, CommunicationsController.list);
+communicationsRouter.post("/send", requireAuth, CommunicationsController.send);
 
 const dashboardRouter = Router();
-dashboardRouter.get("/stats", DashboardController.stats);
+dashboardRouter.get("/stats", requireAuth, DashboardController.stats);
 
 export { inventoryRouter, transactionsRouter, communicationsRouter, dashboardRouter };

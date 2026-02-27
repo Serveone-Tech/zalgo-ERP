@@ -1,13 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@shared/routes";
+import { useBranch } from "@/contexts/branch";
 
-export function useDashboardStats() {
-  return useQuery({
-    queryKey: [api.dashboard.stats.path],
+interface DashboardStats {
+  totalStudents: number;
+  activeLeads: number;
+  totalTeachers: number;
+  totalRevenue: number;
+  pendingFees: number;
+  recentLeads: any[];
+  courseEnrollments: { courseName: string; studentCount: number }[];
+}
+
+export function useDashboardStats(period?: string, from?: string, to?: string) {
+  const { selectedBranchId } = useBranch();
+
+  return useQuery<DashboardStats>({
+    queryKey: ["/api/dashboard/stats", period, from, to, selectedBranchId],
     queryFn: async () => {
-      const res = await fetch(api.dashboard.stats.path, { credentials: "include" });
+      const params = new URLSearchParams();
+      if (period) params.set("period", period);
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      if (selectedBranchId) params.set("branchId", String(selectedBranchId));
+      const url = `/api/dashboard/stats${params.toString() ? "?" + params.toString() : ""}`;
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch dashboard stats");
-      return api.dashboard.stats.responses[200].parse(await res.json());
+      return res.json();
     },
   });
 }
