@@ -41,14 +41,14 @@ const navigation = [
     { name: "Income / Expense", href: "/transactions",  icon: TrendingUp,      module: "transactions" },
   ]},
   { group: "Operations", items: [
-    { name: "Inventory",        href: "/inventory",     icon: Package,         module: "inventory" },
-    { name: "Communications",   href: "/communications",icon: MessageSquare,   module: "communications" },
-    { name: "ID Cards",         href: "/idcards",       icon: IdCard,          module: undefined },
-    { name: "Reports",          href: "/reports",       icon: BarChart3,       module: "reports" },
+    { name: "Inventory",        href: "/inventory",     icon: Package,         module: "inventory",       adminOnly: false },
+    { name: "Communications",   href: "/communications",icon: MessageSquare,   module: "communications",  adminOnly: false },
+    { name: "ID Cards",         href: "/idcards",       icon: IdCard,          module: undefined,         adminOnly: true },
+    { name: "Reports",          href: "/reports",       icon: BarChart3,       module: "reports",         adminOnly: false },
   ]},
   { group: "Administration", items: [
-    { name: "Branches",         href: "/branches",      icon: GitBranch,       module: undefined },
-    { name: "Users & Roles",    href: "/users",         icon: ShieldCheck,     module: undefined },
+    { name: "Branches",         href: "/branches",      icon: GitBranch,       module: undefined,         adminOnly: true },
+    { name: "Users & Roles",    href: "/users",         icon: ShieldCheck,     module: undefined,         adminOnly: true },
   ]},
 ];
 
@@ -79,9 +79,11 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       <nav className="flex-1 overflow-y-auto py-3 px-3">
         {navigation.map((section) => {
-          const visibleItems = section.items.filter(item =>
-            !item.module || isAdmin || canAccess(item.module)
-          );
+          const visibleItems = section.items.filter(item => {
+            if ((item as any).adminOnly) return isAdmin;
+            if (!item.module) return true; // Dashboard always visible
+            return isAdmin || canAccess(item.module);
+          });
           if (visibleItems.length === 0) return null;
           return (
             <div key={section.group} className="mb-4">

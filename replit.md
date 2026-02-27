@@ -14,6 +14,26 @@ A full-stack Institute ERP Management System built for BADAM SINGH Classes by Za
 - Email: `admin@badamsingh.com`
 - Password: `admin123`
 
+## RBAC Rules
+- Admin role: sees all sidebar items, full access to all modules
+- Non-admin (staff/accountant/teacher): sidebar shows only permitted modules
+- adminOnly items (Branches, Users & Roles, ID Cards): admin-only, hidden from all non-admins
+- Module items (leads, students, etc.): visible only if user has at least `module:read` permission
+- Action buttons (Add, Import, Delete) are hidden if user lacks write/delete permissions respectively
+
+## Sample Data (Production Seed)
+- 9 Leads (various statuses: New, Follow-up, Converted)
+- 6 Students (enrolled in JEE & NEET batches)
+- 5 Teachers (Physics, Chemistry, Maths, Biology)
+- 3 Courses (JEE Main & Advanced, NEET UG, test)
+- 6 Fee records + 8 Fee Plans + 27 Installments
+- 5 Assignments (JEE + NEET subjects)
+- 6 Exams (Unit tests + Mock tests)
+- 12 Inventory items (Books, Stationery, Electronics, Furniture)
+- 12 Transactions (Income & Expense)
+- 8 Communications (SMS, WhatsApp, Email)
+- 4 Branches
+
 ## Project Structure
 
 ```
