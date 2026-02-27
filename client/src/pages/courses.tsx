@@ -5,7 +5,8 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, BookOpen, Trash2, Users, Mail, MessageSquare } from "lucide-react";
+import { Plus, BookOpen, Trash2, Users, Mail, MessageSquare, Send } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger 
 } from "@/components/ui/dialog";
@@ -20,6 +21,7 @@ export default function CoursesPage() {
   const { data: courses, isLoading } = useCourses();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+  const [isBulkOpen, setIsBulkOpen] = useState(false);
   const deleteMutation = useDeleteCourse();
   const { toast } = useToast();
 
@@ -39,20 +41,41 @@ export default function CoursesPage() {
           <p className="text-muted-foreground text-sm mt-1">Manage institute offerings</p>
         </div>
         
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button className="rounded-xl shadow-md shadow-primary/20">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Course
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md rounded-2xl">
-            <DialogHeader>
-              <DialogTitle className="font-display">Create Course</DialogTitle>
-            </DialogHeader>
-            <CourseForm onSuccess={() => setIsAddOpen(false)} />
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2">
+          <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="rounded-xl">
+                <Send className="w-4 h-4 mr-2" />
+                Bulk Message
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md rounded-2xl">
+              <DialogHeader>
+                <DialogTitle>Send Bulk Message</DialogTitle>
+              </DialogHeader>
+              <MessagingForm 
+                recipientType="Bulk" 
+                courses={courses || []} 
+                onSuccess={() => setIsBulkOpen(false)} 
+              />
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button className="rounded-xl shadow-md shadow-primary/20">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Course
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="font-display">Create Course</DialogTitle>
+              </DialogHeader>
+              <CourseForm onSuccess={() => setIsAddOpen(false)} />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -118,7 +141,7 @@ export default function CoursesPage() {
 
 function CourseStudentList({ courseId }: { courseId: number }) {
   const { data: results, isLoading } = useCourseStudents(courseId);
-  const [messagingStudent, setMessagingStudent] = useState<{ id: number, name: string, email: string | null, phone: string } | null>(null);
+  const [messagingTarget, setMessagingTarget] = useState<{ id: number, name: string, type: 'Student' | 'Parent' } | null>(null);
 
   if (isLoading) return <p className="text-muted-foreground py-8 text-center">Loading students...</p>;
   if (!results || results.length === 0) return <p className="text-muted-foreground py-8 text-center">No students enrolled in this course yet.</p>;
@@ -148,16 +171,29 @@ function CourseStudentList({ courseId }: { courseId: number }) {
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="text-sm">{student.phone}</TableCell>
+              <TableCell className="text-sm">
+                <div>
+                  <p>S: {student.phone}</p>
+                  <p className="text-xs text-muted-foreground">P: {student.parentPhone}</p>
+                </div>
+              </TableCell>
               <TableCell>
                 <div className="flex gap-2">
                   <Button 
-                    size="icon" 
+                    size="sm" 
                     variant="ghost" 
-                    className="h-8 w-8 text-blue-600 hover:bg-blue-50"
-                    onClick={() => setMessagingStudent({ id: student.id, name: student.name, email: student.email || null, phone: student.phone })}
+                    className="h-8 px-2 text-blue-600 hover:bg-blue-50"
+                    onClick={() => setMessagingTarget({ id: student.id, name: student.name, type: 'Student' })}
                   >
-                    <Mail className="w-4 h-4" />
+                    Student
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-8 px-2 text-purple-600 hover:bg-purple-50"
+                    onClick={() => setMessagingTarget({ id: student.id, name: student.parentName || student.name, type: 'Parent' })}
+                  >
+                    Parent
                   </Button>
                 </div>
               </TableCell>
@@ -166,16 +202,16 @@ function CourseStudentList({ courseId }: { courseId: number }) {
         </TableBody>
       </Table>
 
-      <Dialog open={!!messagingStudent} onOpenChange={(open) => !open && setMessagingStudent(null)}>
+      <Dialog open={!!messagingTarget} onOpenChange={(open) => !open && setMessagingTarget(null)}>
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Send Message to {messagingStudent?.name}</DialogTitle>
+            <DialogTitle>Send Message to {messagingTarget?.name} ({messagingTarget?.type})</DialogTitle>
           </DialogHeader>
-          {messagingStudent && (
+          {messagingTarget && (
             <MessagingForm 
-              recipientId={messagingStudent.id} 
-              recipientType="Student" 
-              onSuccess={() => setMessagingStudent(null)} 
+              recipientId={messagingTarget.id} 
+              recipientType={messagingTarget.type} 
+              onSuccess={() => setMessagingTarget(null)} 
             />
           )}
         </DialogContent>
@@ -184,10 +220,11 @@ function CourseStudentList({ courseId }: { courseId: number }) {
   );
 }
 
-function MessagingForm({ recipientId, recipientType, onSuccess }: { recipientId: number, recipientType: 'Student' | 'Teacher', onSuccess: () => void }) {
+function MessagingForm({ recipientId, recipientType, courses, onSuccess }: { recipientId?: number, recipientType: 'Student' | 'Teacher' | 'Parent' | 'Bulk', courses?: any[], onSuccess: () => void }) {
   const { toast } = useToast();
-  const [type, setType] = useState<'Email' | 'SMS'>('Email');
+  const [type, setType] = useState<'Email' | 'SMS' | 'WhatsApp'>('WhatsApp');
   const [isSending, setIsSending] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<string>("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -201,6 +238,7 @@ function MessagingForm({ recipientId, recipientType, onSuccess }: { recipientId:
         body: JSON.stringify({
           recipientId,
           recipientType,
+          courseId: selectedCourse ? Number(selectedCourse) : undefined,
           type,
           subject: formData.get('subject'),
           content: formData.get('content')
@@ -222,7 +260,15 @@ function MessagingForm({ recipientId, recipientType, onSuccess }: { recipientId:
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-      <div className="flex gap-4">
+      <div className="flex flex-wrap gap-2">
+        <Button 
+          type="button" 
+          variant={type === 'WhatsApp' ? 'default' : 'outline'} 
+          className="flex-1 rounded-xl"
+          onClick={() => setType('WhatsApp')}
+        >
+          <SiWhatsapp className="w-4 h-4 mr-2" /> WhatsApp
+        </Button>
         <Button 
           type="button" 
           variant={type === 'Email' ? 'default' : 'outline'} 
@@ -240,6 +286,24 @@ function MessagingForm({ recipientId, recipientType, onSuccess }: { recipientId:
           <MessageSquare className="w-4 h-4 mr-2" /> SMS
         </Button>
       </div>
+
+      {recipientType === 'Bulk' && courses && (
+        <div className="space-y-2">
+          <Label htmlFor="courseId">Select Course/Batch</Label>
+          <select 
+            id="courseId"
+            className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            value={selectedCourse}
+            onChange={(e) => setSelectedCourse(e.target.value)}
+            required
+          >
+            <option value="">Choose a course...</option>
+            {courses.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {type === 'Email' && (
         <div className="space-y-2">

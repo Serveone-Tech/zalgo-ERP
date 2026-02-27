@@ -86,9 +86,10 @@ export const api = {
       method: 'POST' as const, 
       path: '/api/communications/send' as const, 
       input: z.object({
-        recipientId: z.number(),
-        recipientType: z.enum(['Student', 'Teacher']),
-        type: z.enum(['Email', 'SMS']),
+        recipientId: z.number().optional(),
+        recipientType: z.enum(['Student', 'Teacher', 'Parent', 'Bulk']),
+        courseId: z.number().optional(),
+        type: z.enum(['Email', 'SMS', 'WhatsApp']),
         subject: z.string().optional(),
         content: z.string(),
       }),

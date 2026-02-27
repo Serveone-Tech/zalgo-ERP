@@ -135,8 +135,8 @@ export const transactions = pgTable("transactions", {
 export const communications = pgTable("communications", {
   id: serial("id").primaryKey(),
   recipientId: integer("recipient_id").notNull(),
-  recipientType: text("recipient_type").notNull(), // Student, Teacher
-  type: text("type").notNull(), // Email, SMS
+  recipientType: text("recipient_type").notNull(), // Student, Teacher, Parent
+  type: text("type").notNull(), // Email, SMS, WhatsApp
   subject: text("subject"),
   content: text("content").notNull(),
   sentAt: timestamp("sent_at").defaultNow(),

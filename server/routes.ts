@@ -288,10 +288,24 @@ export async function registerRoutes(
     try {
       const input = api.communications.send.input.parse(req.body);
       
-      // MOCK sending logic
-      console.log(`Sending ${input.type} to ${input.recipientType} ${input.recipientId}: ${input.content}`);
+      let recipientsCount = 0;
+      if (input.recipientType === 'Bulk' && input.courseId) {
+        const students = await storage.getCourseStudents(input.courseId);
+        recipientsCount = students.length;
+        console.log(`Bulk sending ${input.type} to ${recipientsCount} students in course ${input.courseId}`);
+        // In real app, loop and send
+      } else {
+        recipientsCount = 1;
+        console.log(`Sending ${input.type} to ${input.recipientType} ${input.recipientId}: ${input.content}`);
+      }
       
-      const result = await storage.createCommunication(input);
+      const result = await storage.createCommunication({
+        recipientId: input.recipientId || 0,
+        recipientType: input.recipientType,
+        type: input.type,
+        subject: input.subject || null,
+        content: input.content
+      });
       res.status(201).json(result);
     } catch (err) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join('.') });
