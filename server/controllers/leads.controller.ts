@@ -9,6 +9,12 @@ export const LeadsController = {
     res.json(leads);
   },
 
+  async get(req: Request, res: Response) {
+    const lead = await storage.getLead(Number(req.params.id));
+    if (!lead) return res.status(404).json({ message: "Lead not found" });
+    res.json(lead);
+  },
+
   async create(req: Request, res: Response) {
     try {
       const input = api.leads.create.input.parse(req.body);

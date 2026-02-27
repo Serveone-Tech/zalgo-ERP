@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useTeachers, useCreateTeacher, useDeleteTeacher } from "@/hooks/use-teachers";
 import { ImportDialog, type FieldDef } from "@/components/import-dialog";
+import { useLocation } from "wouter";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, GraduationCap, Trash2 } from "lucide-react";
+import { Plus, GraduationCap, Trash2, Eye } from "lucide-react";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger 
 } from "@/components/ui/dialog";
@@ -28,6 +29,7 @@ export default function TeachersPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const deleteMutation = useDeleteTeacher();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const handleBulkImport = async (rows: Record<string, string>[]) => {
     let success = 0; let failed = 0;
@@ -121,9 +123,14 @@ export default function TeachersPage() {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{teacher.qualification || 'N/A'}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 rounded-lg" onClick={() => handleDelete(teacher.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="rounded-lg text-muted-foreground hover:text-primary" onClick={() => navigate(`/teachers/${teacher.id}`)} data-testid={`btn-view-teacher-${teacher.id}`}>
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 rounded-lg" onClick={() => handleDelete(teacher.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

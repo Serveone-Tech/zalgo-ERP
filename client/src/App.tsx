@@ -25,6 +25,10 @@ import IDCardsPage from "@/pages/idcards";
 import ReportsPage from "@/pages/reports";
 import BranchesPage from "@/pages/branches";
 import UsersPage from "@/pages/users";
+import StudentViewPage from "@/pages/student-view";
+import TeacherViewPage from "@/pages/teacher-view";
+import LeadViewPage from "@/pages/lead-view";
+import CourseViewPage from "@/pages/course-view";
 
 function AuthenticatedRouter() {
   const { user, isLoading } = useAuth();
@@ -45,9 +49,13 @@ function AuthenticatedRouter() {
         <Switch>
           <Route path="/" component={Dashboard} />
           <Route path="/leads" component={LeadsPage} />
+          <Route path="/leads/:id" component={LeadViewPage} />
           <Route path="/students" component={StudentsPage} />
+          <Route path="/students/:id" component={StudentViewPage} />
           <Route path="/teachers" component={TeachersPage} />
+          <Route path="/teachers/:id" component={TeacherViewPage} />
           <Route path="/courses" component={CoursesPage} />
+          <Route path="/courses/:id" component={CourseViewPage} />
           <Route path="/fees" component={FeesPage} />
           <Route path="/assignments" component={AssignmentsPage} />
           <Route path="/exams" component={ExamsPage} />

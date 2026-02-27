@@ -9,6 +9,12 @@ export const TeachersController = {
     res.json(teachers);
   },
 
+  async get(req: Request, res: Response) {
+    const teacher = await storage.getTeacher(Number(req.params.id));
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
+    res.json(teacher);
+  },
+
   async create(req: Request, res: Response) {
     try {
       const input = api.teachers.create.input.parse(req.body);

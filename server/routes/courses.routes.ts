@@ -4,6 +4,7 @@ import { requireAuth } from "../controllers/auth.controller";
 
 const router = Router();
 router.get("/", requireAuth, CoursesController.list);
+router.get("/:id", requireAuth, CoursesController.get);
 router.get("/:id/students", requireAuth, CoursesController.students);
 router.post("/", requireAuth, CoursesController.create);
 router.put("/:id", requireAuth, CoursesController.update);

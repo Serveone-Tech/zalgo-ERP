@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useCourses, useCreateCourse, useDeleteCourse, useCourseStudents } from "@/hooks/use-courses";
+import { useLocation } from "wouter";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, BookOpen, Trash2, Users, Mail, MessageSquare, Send } from "lucide-react";
+import { Plus, BookOpen, Trash2, Users, Mail, MessageSquare, Send, Eye } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger 
@@ -24,6 +25,7 @@ export default function CoursesPage() {
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const deleteMutation = useDeleteCourse();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const handleDelete = (id: number) => {
     if(confirm("Are you sure you want to delete this course?")) {
@@ -106,21 +108,27 @@ export default function CoursesPage() {
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-border/40 flex justify-between">
-                <Dialog open={selectedCourseId === course.id} onOpenChange={(open) => setSelectedCourseId(open ? course.id : null)}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="rounded-lg">
-                      <Users className="w-4 h-4 mr-2" />
-                      View Students
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-3xl rounded-2xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle className="font-display">Enrolled Students - {course.name}</DialogTitle>
-                    </DialogHeader>
-                    <CourseStudentList courseId={course.id} />
-                  </DialogContent>
-                </Dialog>
+              <div className="mt-4 pt-4 border-t border-border/40 flex justify-between items-center">
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => navigate(`/courses/${course.id}`)} data-testid={`btn-view-course-${course.id}`}>
+                    <Eye className="w-4 h-4 mr-2" />
+                    View Details
+                  </Button>
+                  <Dialog open={selectedCourseId === course.id} onOpenChange={(open) => setSelectedCourseId(open ? course.id : null)}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="rounded-lg">
+                        <Users className="w-4 h-4 mr-2" />
+                        Students
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-3xl rounded-2xl max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle className="font-display">Enrolled Students - {course.name}</DialogTitle>
+                      </DialogHeader>
+                      <CourseStudentList courseId={course.id} />
+                    </DialogContent>
+                  </Dialog>
+                </div>
                 
                 <Button 
                   variant="destructive" 

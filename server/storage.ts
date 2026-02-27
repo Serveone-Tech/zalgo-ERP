@@ -30,6 +30,7 @@ export interface IStorage {
 
   // Leads
   getLeads(branchId?: number): Promise<Lead[]>;
+  getLead(id: number): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: number, lead: Partial<InsertLead>): Promise<Lead>;
   deleteLead(id: number): Promise<void>;
@@ -43,12 +44,14 @@ export interface IStorage {
 
   // Teachers
   getTeachers(branchId?: number): Promise<Teacher[]>;
+  getTeacher(id: number): Promise<Teacher | undefined>;
   createTeacher(teacher: InsertTeacher): Promise<Teacher>;
   updateTeacher(id: number, teacher: Partial<InsertTeacher>): Promise<Teacher>;
   deleteTeacher(id: number): Promise<void>;
 
   // Courses
   getCourses(): Promise<Course[]>;
+  getCourse(id: number): Promise<Course | undefined>;
   getCourseStudents(courseId: number): Promise<{ student: Student; enrollment: Enrollment }[]>;
   createCourse(course: InsertCourse): Promise<Course>;
   updateCourse(id: number, course: Partial<InsertCourse>): Promise<Course>;
@@ -167,6 +170,10 @@ export class DatabaseStorage implements IStorage {
     }
     return await db.select().from(leads).orderBy(desc(leads.createdAt));
   }
+  async getLead(id: number): Promise<Lead | undefined> {
+    const [l] = await db.select().from(leads).where(eq(leads.id, id));
+    return l;
+  }
   async createLead(lead: InsertLead): Promise<Lead> {
     const [l] = await db.insert(leads).values(lead).returning();
     return l;
@@ -209,6 +216,10 @@ export class DatabaseStorage implements IStorage {
     }
     return await db.select().from(teachers).orderBy(desc(teachers.createdAt));
   }
+  async getTeacher(id: number): Promise<Teacher | undefined> {
+    const [t] = await db.select().from(teachers).where(eq(teachers.id, id));
+    return t;
+  }
   async createTeacher(teacher: InsertTeacher): Promise<Teacher> {
     const [t] = await db.insert(teachers).values(teacher).returning();
     return t;
@@ -224,6 +235,10 @@ export class DatabaseStorage implements IStorage {
   // Courses
   async getCourses(): Promise<Course[]> {
     return await db.select().from(courses);
+  }
+  async getCourse(id: number): Promise<Course | undefined> {
+    const [c] = await db.select().from(courses).where(eq(courses.id, id));
+    return c;
   }
   async getCourseStudents(courseId: number): Promise<{ student: Student; enrollment: Enrollment }[]> {
     return await db.select({ student: students, enrollment: enrollments })

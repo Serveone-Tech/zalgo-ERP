@@ -9,6 +9,12 @@ export const CoursesController = {
     res.json(courses);
   },
 
+  async get(req: Request, res: Response) {
+    const course = await storage.getCourse(Number(req.params.id));
+    if (!course) return res.status(404).json({ message: "Course not found" });
+    res.json(course);
+  },
+
   async students(req: Request, res: Response) {
     const results = await storage.getCourseStudents(Number(req.params.id));
     res.json(results);

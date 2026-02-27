@@ -2,12 +2,13 @@ import { useState, useRef } from "react";
 import { useStudents, useCreateStudent, useDeleteStudent } from "@/hooks/use-students";
 import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 import { format } from "date-fns";
+import { useLocation } from "wouter";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Trash2, User, Camera, Upload } from "lucide-react";
+import { Plus, Search, Trash2, User, Camera, Upload, Eye } from "lucide-react";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger 
 } from "@/components/ui/dialog";
@@ -33,6 +34,7 @@ export default function StudentsPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const deleteMutation = useDeleteStudent();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const handleBulkImport = async (rows: Record<string, string>[]) => {
     let success = 0; let failed = 0;
@@ -152,9 +154,14 @@ export default function StudentsPage() {
                     {student.createdAt ? format(new Date(student.createdAt), 'MMM d, yyyy') : 'N/A'}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 rounded-lg" onClick={() => handleDelete(student.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="rounded-lg text-muted-foreground hover:text-primary" onClick={() => navigate(`/students/${student.id}`)} data-testid={`btn-view-student-${student.id}`}>
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 rounded-lg" onClick={() => handleDelete(student.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

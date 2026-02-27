@@ -3,12 +3,13 @@ import { useLeads, useCreateLead, useUpdateLead, useDeleteLead } from "@/hooks/u
 import { useCourses } from "@/hooks/use-courses";
 import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 import { format } from "date-fns";
+import { useLocation } from "wouter";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, MoreHorizontal, Trash2 } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Trash2, Eye } from "lucide-react";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger 
 } from "@/components/ui/dialog";
@@ -151,6 +152,7 @@ function LeadActions({ lead }: { lead: any }) {
   const deleteMutation = useDeleteLead();
   const updateMutation = useUpdateLead();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const handleDelete = () => {
     if(confirm("Are you sure you want to delete this lead?")) {
@@ -167,21 +169,29 @@ function LeadActions({ lead }: { lead: any }) {
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0 rounded-lg">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40 rounded-xl">
-        <DropdownMenuItem onClick={() => updateStatus('Follow-up')}>Mark Follow-up</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => updateStatus('Converted')}>Mark Converted</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => updateStatus('Dropped')}>Mark Dropped</DropdownMenuItem>
-        <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:bg-destructive/10">
-          <Trash2 className="h-4 w-4 mr-2" /> Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center gap-1">
+      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary" onClick={() => navigate(`/leads/${lead.id}`)} data-testid={`btn-view-lead-${lead.id}`}>
+        <Eye className="h-4 w-4" />
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0 rounded-lg">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44 rounded-xl">
+          <DropdownMenuItem onClick={() => navigate(`/leads/${lead.id}`)}>
+            <Eye className="h-4 w-4 mr-2" /> View Details
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => updateStatus('Follow-up')}>Mark Follow-up</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => updateStatus('Converted')}>Mark Converted</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => updateStatus('Dropped')}>Mark Dropped</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:bg-destructive/10">
+            <Trash2 className="h-4 w-4 mr-2" /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 
