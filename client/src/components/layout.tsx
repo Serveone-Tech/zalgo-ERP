@@ -101,34 +101,32 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         ))}
       </nav>
 
-      <div className="px-4 py-4 border-t border-sidebar-border">
-        <div className="flex items-center gap-3 px-2">
+      <div className="px-3 py-3 border-t border-sidebar-border space-y-1">
+        <div className="flex items-center gap-3 px-3 py-2 mb-1">
           <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
             <span className="text-xs font-bold text-primary">{initials}</span>
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.name ?? "Admin"}</p>
             <p className="text-xs text-sidebar-foreground/50 truncate capitalize">{user?.role ?? "staff"}</p>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setChangePasswordOpen(true)}
-              title="Change Password"
-              className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors p-1"
-              data-testid="button-sidebar-change-password"
-            >
-              <KeyRound className="w-4 h-4" />
-            </button>
-            <button
-              onClick={logout}
-              title="Logout"
-              className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors p-1"
-              data-testid="button-logout"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
         </div>
+        <button
+          onClick={() => setChangePasswordOpen(true)}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-200"
+          data-testid="button-sidebar-change-password"
+        >
+          <KeyRound className="w-[18px] h-[18px] text-sidebar-foreground/50 shrink-0" />
+          Reset Password
+        </button>
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-foreground/70 hover:bg-red-500/10 hover:text-red-400 transition-all duration-200"
+          data-testid="button-logout"
+        >
+          <LogOut className="w-[18px] h-[18px] shrink-0" />
+          Sign Out
+        </button>
       </div>
 
       <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
