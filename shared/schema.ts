@@ -21,8 +21,10 @@ export const students = pgTable("students", {
   name: text("name").notNull(),
   email: text("email"),
   phone: text("phone").notNull(),
+  parentName: text("parent_name"),
   parentPhone: text("parent_phone").notNull(),
   address: text("address"),
+  profilePicture: text("profile_picture"), // Base64 or URL
   status: text("status").notNull().default("Active"),
   createdAt: timestamp("created_at").defaultNow(),
 });

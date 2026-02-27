@@ -81,6 +81,10 @@ export const api = {
           totalTeachers: z.number(),
           totalRevenue: z.number(),
           recentLeads: z.array(z.custom<typeof leads.$inferSelect>()),
+          courseEnrollments: z.array(z.object({
+            courseName: z.string(),
+            studentCount: z.number()
+          })).optional(),
         }) 
       } 
     }

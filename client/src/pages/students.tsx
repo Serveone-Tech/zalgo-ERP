@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useStudents, useCreateStudent, useDeleteStudent } from "@/hooks/use-students";
 import { format } from "date-fns";
 import { 
@@ -6,13 +6,14 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Trash2, User } from "lucide-react";
+import { Plus, Search, Trash2, User, Camera, Upload } from "lucide-react";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger 
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function StudentsPage() {
   const { data: students, isLoading } = useStudents();
@@ -60,7 +61,7 @@ export default function StudentsPage() {
                 Add Student
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md rounded-2xl">
+            <DialogContent className="sm:max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="font-display">Register Student</DialogTitle>
               </DialogHeader>
@@ -93,15 +94,19 @@ export default function StudentsPage() {
                   <TableCell className="font-medium text-xs text-muted-foreground">{student.enrollmentNo}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        <User className="w-4 h-4" />
-                      </div>
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={student.profilePicture || ""} />
+                        <AvatarFallback className="bg-primary/10 text-primary">
+                          <User className="w-4 h-4" />
+                        </AvatarFallback>
+                      </Avatar>
                       <span className="font-medium">{student.name}</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">{student.phone}</div>
-                    <div className="text-xs text-muted-foreground">P: {student.parentPhone}</div>
+                    <div className="text-sm font-medium">{student.phone}</div>
+                    <div className="text-xs text-muted-foreground">E: {student.email || 'N/A'}</div>
+                    <div className="text-xs text-muted-foreground">P: {student.parentName} ({student.parentPhone})</div>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50">
@@ -129,17 +134,69 @@ export default function StudentsPage() {
 function StudentForm({ onSuccess }: { onSuccess: () => void }) {
   const createMutation = useCreateStudent();
   const { toast } = useToast();
+  const [profilePic, setProfilePic] = useState<string | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const startCamera = async () => {
+    setShowCamera(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      toast({ title: "Camera Error", description: "Could not access camera", variant: "destructive" });
+      setShowCamera(false);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const context = canvasRef.current.getContext('2d');
+      if (context) {
+        canvasRef.current.width = videoRef.current.videoWidth;
+        canvasRef.current.height = videoRef.current.videoHeight;
+        context.drawImage(videoRef.current, 0, 0);
+        const dataUrl = canvasRef.current.toDataURL('image/jpeg');
+        setProfilePic(dataUrl);
+        stopCamera();
+      }
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+    }
+    setShowCamera(false);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePic(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     createMutation.mutate({
-      enrollmentNo: `BSC${Math.floor(1000 + Math.random() * 9000)}`, // Auto generate for simplicity
+      enrollmentNo: `BSC${Math.floor(1000 + Math.random() * 9000)}`,
       name: formData.get("name") as string,
       email: formData.get("email") as string || null,
       phone: formData.get("phone") as string,
+      parentName: formData.get("parentName") as string,
       parentPhone: formData.get("parentPhone") as string,
       address: formData.get("address") as string || null,
+      profilePicture: profilePic,
       status: "Active",
     }, {
       onSuccess: () => {
@@ -150,7 +207,48 @@ function StudentForm({ onSuccess }: { onSuccess: () => void }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+    <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+      <div className="flex flex-col items-center gap-4 mb-6">
+        <Avatar className="w-24 h-24 border-2 border-primary/20">
+          <AvatarImage src={profilePic || ""} />
+          <AvatarFallback className="bg-muted text-muted-foreground">
+            <User className="w-12 h-12" />
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => startCamera()} className="rounded-lg">
+            <Camera className="w-4 h-4 mr-2" />
+            Capture
+          </Button>
+          <div className="relative">
+            <Input 
+              type="file" 
+              accept="image/*" 
+              className="hidden" 
+              id="pic-upload"
+              onChange={handleFileUpload}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById('pic-upload')?.click()} className="rounded-lg">
+              <Upload className="w-4 h-4 mr-2" />
+              Upload
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {showCamera && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
+          <video ref={videoRef} autoPlay className="max-w-full rounded-2xl bg-black" />
+          <canvas ref={canvasRef} className="hidden" />
+          <div className="flex gap-4 mt-6">
+            <Button type="button" onClick={capturePhoto} className="rounded-full w-16 h-16 p-0 bg-white hover:bg-white/90">
+              <div className="w-12 h-12 rounded-full border-4 border-primary" />
+            </Button>
+            <Button type="button" variant="destructive" onClick={stopCamera} className="rounded-xl">Cancel</Button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="name">Full Name *</Label>
@@ -161,12 +259,16 @@ function StudentForm({ onSuccess }: { onSuccess: () => void }) {
           <Input id="phone" name="phone" required className="rounded-xl" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="parentPhone">Parent Phone *</Label>
-          <Input id="parentPhone" name="parentPhone" required className="rounded-xl" />
-        </div>
-        <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="email">Email Address</Label>
           <Input id="email" name="email" type="email" className="rounded-xl" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="parentName">Parent Name *</Label>
+          <Input id="parentName" name="parentName" required className="rounded-xl" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="parentPhone">Parent Phone *</Label>
+          <Input id="parentPhone" name="parentPhone" required className="rounded-xl" />
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="address">Address</Label>

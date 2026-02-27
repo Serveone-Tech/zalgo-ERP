@@ -89,52 +89,21 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="col-span-1 lg:col-span-2 border-border/50 shadow-sm rounded-2xl overflow-hidden">
           <CardHeader className="border-b border-border/40 bg-card/50 pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-display font-bold">Recent Enquiries</CardTitle>
-              <Badge variant="secondary" className="font-normal text-xs bg-primary/10 text-primary hover:bg-primary/20 cursor-pointer">
-                View All <ArrowUpRight className="w-3 h-3 ml-1" />
-              </Badge>
-            </div>
+            <CardTitle className="text-lg font-display font-bold text-foreground">Course Enrollment Summary</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border/40">
-              {stats.recentLeads.length > 0 ? stats.recentLeads.map((lead) => (
-                <div key={lead.id} className="p-4 hover:bg-accent/30 transition-colors flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-semibold text-sm">
-                      {lead.studentName.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground text-sm">{lead.studentName}</p>
-                      <p className="text-xs text-muted-foreground">{lead.courseInterested}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <Badge variant="outline" className={
-                      lead.status === 'New' ? 'border-blue-200 text-blue-700 bg-blue-50' : 
-                      lead.status === 'Converted' ? 'border-emerald-200 text-emerald-700 bg-emerald-50' : 
-                      'border-amber-200 text-amber-700 bg-amber-50'
-                    }>
-                      {lead.status}
-                    </Badge>
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {lead.createdAt ? format(new Date(lead.createdAt), 'MMM d, yyyy') : 'N/A'}
-                    </span>
-                  </div>
+              {stats.courseEnrollments?.map((course, idx) => (
+                <div key={idx} className="p-4 flex items-center justify-between">
+                  <span className="font-medium text-foreground">{course.courseName}</span>
+                  <Badge variant="secondary" className="bg-primary/10 text-primary">{course.studentCount} Students</Badge>
                 </div>
-              )) : (
-                <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
-                  <UserSquare2 className="w-10 h-10 mb-3 opacity-20" />
-                  <p>No recent enquiries found</p>
-                </div>
-              )}
+              ))}
             </div>
           </CardContent>
         </Card>
-        
-        {/* Decorative Graphic Card representing growth/institute pride */}
-        <Card className="col-span-1 border-none shadow-lg rounded-2xl overflow-hidden relative bg-gradient-to-br from-primary to-blue-800 text-primary-foreground">
+
+        <Card className="col-span-1 border-border/50 shadow-sm rounded-2xl overflow-hidden">
           {/* subtle pattern overlay */}
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
           <CardContent className="p-8 relative z-10 h-full flex flex-col justify-center">

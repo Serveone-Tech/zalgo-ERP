@@ -173,12 +173,22 @@ export class DatabaseStorage implements IStorage {
 
     const recentLeads = await db.select().from(leads).orderBy(leads.createdAt).limit(5);
 
+    const coursesList = await db.select().from(courses);
+    const courseEnrollments = await Promise.all(coursesList.map(async (course) => {
+      const [enrollmentCount] = await db.select({ count: count() }).from(enrollments).where(eq(enrollments.courseId, course.id));
+      return {
+        courseName: course.name,
+        studentCount: enrollmentCount.count
+      };
+    }));
+
     return {
       totalStudents: studentsResult.count,
       activeLeads: leadsResult.count,
       totalTeachers: teachersResult.count,
       totalRevenue,
-      recentLeads
+      recentLeads,
+      courseEnrollments
     };
   }
 
