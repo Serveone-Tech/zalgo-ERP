@@ -131,6 +131,17 @@ export const transactions = pgTable("transactions", {
   date: timestamp("date").defaultNow(),
 });
 
+// Communications
+export const communications = pgTable("communications", {
+  id: serial("id").primaryKey(),
+  recipientId: integer("recipient_id").notNull(),
+  recipientType: text("recipient_type").notNull(), // Student, Teacher
+  type: text("type").notNull(), // Email, SMS
+  subject: text("subject"),
+  content: text("content").notNull(),
+  sentAt: timestamp("sent_at").defaultNow(),
+});
+
 // Base Schemas
 export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true });
 export const insertStudentSchema = createInsertSchema(students).omit({ id: true, createdAt: true });
@@ -142,6 +153,7 @@ export const insertAssignmentSchema = createInsertSchema(assignments).omit({ id:
 export const insertExamSchema = createInsertSchema(exams).omit({ id: true });
 export const insertInventorySchema = createInsertSchema(inventory).omit({ id: true, lastUpdated: true });
 export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, date: true });
+export const insertCommunicationSchema = createInsertSchema(communications).omit({ id: true, sentAt: true });
 
 // Types
 export type Lead = typeof leads.$inferSelect;
@@ -154,6 +166,7 @@ export type Assignment = typeof assignments.$inferSelect;
 export type Exam = typeof exams.$inferSelect;
 export type InventoryItem = typeof inventory.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
+export type Communication = typeof communications.$inferSelect;
 
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 export type InsertStudent = z.infer<typeof insertStudentSchema>;
@@ -165,3 +178,4 @@ export type InsertAssignment = z.infer<typeof insertAssignmentSchema>;
 export type InsertExam = z.infer<typeof insertExamSchema>;
 export type InsertInventory = z.infer<typeof insertInventorySchema>;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;

@@ -31,6 +31,19 @@ export function useCreateCourse() {
   });
 }
 
+export function useCourseStudents(id: number) {
+  return useQuery({
+    queryKey: [api.courses.students.path, id],
+    queryFn: async () => {
+      const url = buildUrl(api.courses.students.path, { id });
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch course students");
+      return api.courses.students.responses[200].parse(await res.json());
+    },
+    enabled: !!id,
+  });
+}
+
 export function useDeleteCourse() {
   const queryClient = useQueryClient();
   return useMutation({

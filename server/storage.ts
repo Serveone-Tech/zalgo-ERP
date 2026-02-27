@@ -1,8 +1,8 @@
 import { db } from "./db";
 import {
-  leads, students, teachers, courses, enrollments, fees,
-  type InsertLead, type InsertStudent, type InsertTeacher, type InsertCourse, type InsertEnrollment, type InsertFee,
-  type Lead, type Student, type Teacher, type Course, type Enrollment, type Fee
+  leads, students, teachers, courses, enrollments, fees, assignments, exams, inventory, transactions, communications,
+  type InsertLead, type InsertStudent, type InsertTeacher, type InsertCourse, type InsertEnrollment, type InsertFee, type InsertAssignment, type InsertExam, type InsertInventory, type InsertTransaction, type InsertCommunication,
+  type Lead, type Student, type Teacher, type Course, type Enrollment, type Fee, type Assignment, type Exam, type InventoryItem, type Transaction, type Communication
 } from "@shared/schema";
 import { eq, count } from "drizzle-orm";
 
@@ -28,6 +28,7 @@ export interface IStorage {
 
   // Courses
   getCourses(): Promise<Course[]>;
+  getCourseStudents(courseId: number): Promise<{ student: Student; enrollment: Enrollment }[]>;
   createCourse(course: InsertCourse): Promise<Course>;
   updateCourse(id: number, course: Partial<InsertCourse>): Promise<Course>;
   deleteCourse(id: number): Promise<void>;
@@ -49,6 +50,7 @@ export interface IStorage {
     totalTeachers: number;
     totalRevenue: number;
     recentLeads: Lead[];
+    courseEnrollments: { courseName: string, studentCount: number }[];
   }>;
 
   // Assignments
@@ -66,6 +68,10 @@ export interface IStorage {
   // Transactions
   getTransactions(): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+
+  // Communications
+  getCommunications(): Promise<Communication[]>;
+  createCommunication(comm: InsertCommunication): Promise<Communication>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -124,6 +130,17 @@ export class DatabaseStorage implements IStorage {
   // Courses
   async getCourses(): Promise<Course[]> {
     return await db.select().from(courses);
+  }
+  async getCourseStudents(courseId: number): Promise<{ student: Student; enrollment: Enrollment }[]> {
+    const results = await db.select({
+      student: students,
+      enrollment: enrollments
+    })
+    .from(enrollments)
+    .innerJoin(students, eq(enrollments.studentId, students.id))
+    .where(eq(enrollments.courseId, courseId));
+    
+    return results;
   }
   async createCourse(course: InsertCourse): Promise<Course> {
     const [newCourse] = await db.insert(courses).values(course).returning();
@@ -226,6 +243,15 @@ export class DatabaseStorage implements IStorage {
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     const [newTransaction] = await db.insert(transactions).values(transaction).returning();
     return newTransaction;
+  }
+
+  // Communications
+  async getCommunications(): Promise<Communication[]> {
+    return await db.select().from(communications).orderBy(communications.sentAt);
+  }
+  async createCommunication(comm: InsertCommunication): Promise<Communication> {
+    const [newComm] = await db.insert(communications).values(comm).returning();
+    return newComm;
   }
 }
 

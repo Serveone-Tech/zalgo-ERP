@@ -9,7 +9,8 @@ import {
   insertAssignmentSchema, assignments,
   insertExamSchema, exams,
   insertInventorySchema, inventory,
-  insertTransactionSchema, transactions
+  insertTransactionSchema, transactions,
+  communications
 } from './schema';
 
 export const errorSchemas = {
@@ -40,6 +41,16 @@ export const api = {
   },
   courses: {
     list: { method: 'GET' as const, path: '/api/courses' as const, responses: { 200: z.array(z.custom<typeof courses.$inferSelect>()) } },
+    students: { 
+      method: 'GET' as const, 
+      path: '/api/courses/:id/students' as const, 
+      responses: { 
+        200: z.array(z.object({
+          student: z.custom<typeof students.$inferSelect>(),
+          enrollment: z.custom<typeof enrollments.$inferSelect>()
+        })) 
+      } 
+    },
     create: { method: 'POST' as const, path: '/api/courses' as const, input: insertCourseSchema, responses: { 201: z.custom<typeof courses.$inferSelect>(), 400: errorSchemas.validation } },
     update: { method: 'PUT' as const, path: '/api/courses/:id' as const, input: insertCourseSchema.partial(), responses: { 200: z.custom<typeof courses.$inferSelect>(), 400: errorSchemas.validation, 404: errorSchemas.notFound } },
     delete: { method: 'DELETE' as const, path: '/api/courses/:id' as const, responses: { 204: z.void(), 404: errorSchemas.notFound } },
@@ -69,6 +80,28 @@ export const api = {
   transactions: {
     list: { method: 'GET' as const, path: '/api/transactions' as const, responses: { 200: z.array(z.custom<typeof transactions.$inferSelect>()) } },
     create: { method: 'POST' as const, path: '/api/transactions' as const, input: insertTransactionSchema, responses: { 201: z.custom<typeof transactions.$inferSelect>(), 400: errorSchemas.validation } },
+  },
+  communications: {
+    send: { 
+      method: 'POST' as const, 
+      path: '/api/communications/send' as const, 
+      input: z.object({
+        recipientId: z.number(),
+        recipientType: z.enum(['Student', 'Teacher']),
+        type: z.enum(['Email', 'SMS']),
+        subject: z.string().optional(),
+        content: z.string(),
+      }),
+      responses: { 
+        201: z.custom<typeof communications.$inferSelect>(),
+        400: errorSchemas.validation 
+      } 
+    },
+    list: { 
+      method: 'GET' as const, 
+      path: '/api/communications' as const, 
+      responses: { 200: z.array(z.custom<typeof communications.$inferSelect>()) } 
+    },
   },
   dashboard: {
     stats: { 

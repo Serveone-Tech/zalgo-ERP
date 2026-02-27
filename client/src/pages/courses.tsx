@@ -1,21 +1,25 @@
 import { useState } from "react";
-import { useCourses, useCreateCourse, useDeleteCourse } from "@/hooks/use-courses";
+import { useCourses, useCreateCourse, useDeleteCourse, useCourseStudents } from "@/hooks/use-courses";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, BookOpen, Trash2 } from "lucide-react";
+import { Plus, BookOpen, Trash2, Users, Mail, MessageSquare } from "lucide-react";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger 
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
+import { api } from "@shared/routes";
 
 export default function CoursesPage() {
   const { data: courses, isLoading } = useCourses();
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const deleteMutation = useDeleteCourse();
   const { toast } = useToast();
 
@@ -79,19 +83,180 @@ export default function CoursesPage() {
                 </div>
               </div>
 
-              <Button 
-                variant="destructive" 
-                size="icon" 
-                className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg h-8 w-8"
-                onClick={() => handleDelete(course.id)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              <div className="mt-4 pt-4 border-t border-border/40 flex justify-between">
+                <Dialog open={selectedCourseId === course.id} onOpenChange={(open) => setSelectedCourseId(open ? course.id : null)}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="rounded-lg">
+                      <Users className="w-4 h-4 mr-2" />
+                      View Students
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-3xl rounded-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle className="font-display">Enrolled Students - {course.name}</DialogTitle>
+                    </DialogHeader>
+                    <CourseStudentList courseId={course.id} />
+                  </DialogContent>
+                </Dialog>
+                
+                <Button 
+                  variant="destructive" 
+                  size="icon" 
+                  className="opacity-0 group-hover:opacity-100 transition-opacity rounded-lg h-8 w-8"
+                  onClick={() => handleDelete(course.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           ))
         )}
       </div>
     </div>
+  );
+}
+
+function CourseStudentList({ courseId }: { courseId: number }) {
+  const { data: results, isLoading } = useCourseStudents(courseId);
+  const [messagingStudent, setMessagingStudent] = useState<{ id: number, name: string, email: string | null, phone: string } | null>(null);
+
+  if (isLoading) return <p className="text-muted-foreground py-8 text-center">Loading students...</p>;
+  if (!results || results.length === 0) return <p className="text-muted-foreground py-8 text-center">No students enrolled in this course yet.</p>;
+
+  return (
+    <div className="mt-4">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Student</TableHead>
+            <TableHead>Phone</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {results.map(({ student }) => (
+            <TableRow key={student.id}>
+              <TableCell>
+                <div className="flex items-center gap-3">
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={student.profilePicture || ""} />
+                    <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium text-sm">{student.name}</p>
+                    <p className="text-xs text-muted-foreground">{student.email || 'No Email'}</p>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell className="text-sm">{student.phone}</TableCell>
+              <TableCell>
+                <div className="flex gap-2">
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                    onClick={() => setMessagingStudent({ id: student.id, name: student.name, email: student.email || null, phone: student.phone })}
+                  >
+                    <Mail className="w-4 h-4" />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <Dialog open={!!messagingStudent} onOpenChange={(open) => !open && setMessagingStudent(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Send Message to {messagingStudent?.name}</DialogTitle>
+          </DialogHeader>
+          {messagingStudent && (
+            <MessagingForm 
+              recipientId={messagingStudent.id} 
+              recipientType="Student" 
+              onSuccess={() => setMessagingStudent(null)} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function MessagingForm({ recipientId, recipientType, onSuccess }: { recipientId: number, recipientType: 'Student' | 'Teacher', onSuccess: () => void }) {
+  const { toast } = useToast();
+  const [type, setType] = useState<'Email' | 'SMS'>('Email');
+  const [isSending, setIsSending] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSending(true);
+    const formData = new FormData(e.currentTarget);
+    
+    try {
+      const res = await fetch(api.communications.send.path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientId,
+          recipientType,
+          type,
+          subject: formData.get('subject'),
+          content: formData.get('content')
+        })
+      });
+
+      if (res.ok) {
+        toast({ title: `Message sent via ${type}` });
+        onSuccess();
+      } else {
+        throw new Error('Failed to send');
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to send message", variant: "destructive" });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+      <div className="flex gap-4">
+        <Button 
+          type="button" 
+          variant={type === 'Email' ? 'default' : 'outline'} 
+          className="flex-1 rounded-xl"
+          onClick={() => setType('Email')}
+        >
+          <Mail className="w-4 h-4 mr-2" /> Email
+        </Button>
+        <Button 
+          type="button" 
+          variant={type === 'SMS' ? 'default' : 'outline'} 
+          className="flex-1 rounded-xl"
+          onClick={() => setType('SMS')}
+        >
+          <MessageSquare className="w-4 h-4 mr-2" /> SMS
+        </Button>
+      </div>
+
+      {type === 'Email' && (
+        <div className="space-y-2">
+          <Label htmlFor="subject">Subject</Label>
+          <Input id="subject" name="subject" required className="rounded-xl" placeholder="Message subject" />
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label htmlFor="content">Message Content</Label>
+        <Textarea id="content" name="content" required className="rounded-xl min-h-[120px]" placeholder="Type your message here..." />
+      </div>
+
+      <Button type="submit" className="w-full rounded-xl" disabled={isSending}>
+        {isSending ? "Sending..." : "Send Message"}
+      </Button>
+    </form>
   );
 }
 

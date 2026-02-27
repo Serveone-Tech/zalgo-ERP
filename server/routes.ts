@@ -109,6 +109,10 @@ export async function registerRoutes(
     const courses = await storage.getCourses();
     res.json(courses);
   });
+  app.get(api.courses.students.path, async (req, res) => {
+    const results = await storage.getCourseStudents(Number(req.params.id));
+    res.json(results);
+  });
   app.post(api.courses.create.path, async (req, res) => {
     try {
       const bodySchema = api.courses.create.input.extend({
@@ -268,6 +272,26 @@ export async function registerRoutes(
       });
       const input = bodySchema.parse(req.body);
       const result = await storage.createTransaction(input);
+      res.status(201).json(result);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join('.') });
+      throw err;
+    }
+  });
+
+  // Communications
+  app.get(api.communications.list.path, async (req, res) => {
+    const results = await storage.getCommunications();
+    res.json(results);
+  });
+  app.post(api.communications.send.path, async (req, res) => {
+    try {
+      const input = api.communications.send.input.parse(req.body);
+      
+      // MOCK sending logic
+      console.log(`Sending ${input.type} to ${input.recipientType} ${input.recipientId}: ${input.content}`);
+      
+      const result = await storage.createCommunication(input);
       res.status(201).json(result);
     } catch (err) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join('.') });
