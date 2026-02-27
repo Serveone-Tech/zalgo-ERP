@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useLeads, useCreateLead, useUpdateLead, useDeleteLead } from "@/hooks/use-leads";
+import { useCourses } from "@/hooks/use-courses";
 import { format } from "date-fns";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Trash2 } from "lucide-react";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger 
 } from "@/components/ui/dialog";
@@ -153,17 +154,25 @@ function LeadActions({ lead }: { lead: any }) {
 
 function LeadForm({ onSuccess }: { onSuccess: () => void }) {
   const createMutation = useCreateLead();
+  const { data: courses } = useCourses();
   const { toast } = useToast();
+  const [courseInterested, setCourseInterested] = useState("");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    if (!courseInterested) {
+      toast({ title: "Please select a course", variant: "destructive" });
+      return;
+    }
     createMutation.mutate({
       studentName: formData.get("studentName") as string,
       parentName: formData.get("parentName") as string,
       phone: formData.get("phone") as string,
-      courseInterested: formData.get("courseInterested") as string,
-      status: formData.get("status") as string || "New",
+      parentPhone: formData.get("parentPhone") as string,
+      address: formData.get("address") as string,
+      courseInterested,
+      status: "New",
     }, {
       onSuccess: () => {
         toast({ title: "Enquiry added successfully" });
@@ -177,22 +186,47 @@ function LeadForm({ onSuccess }: { onSuccess: () => void }) {
       <div className="grid grid-cols-1 gap-4">
         <div className="space-y-2">
           <Label htmlFor="studentName">Student Name *</Label>
-          <Input id="studentName" name="studentName" required className="rounded-xl" />
+          <Input data-testid="input-studentName" id="studentName" name="studentName" required className="rounded-xl" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="parentName">Parent Name</Label>
+            <Input data-testid="input-parentName" id="parentName" name="parentName" className="rounded-xl" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="parentPhone">Parent Mobile</Label>
+            <Input data-testid="input-parentPhone" id="parentPhone" name="parentPhone" type="tel" className="rounded-xl" placeholder="Parent mobile no." />
+          </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="parentName">Parent Name</Label>
-          <Input id="parentName" name="parentName" className="rounded-xl" />
+          <Label htmlFor="phone">Student Mobile *</Label>
+          <Input data-testid="input-phone" id="phone" name="phone" type="tel" required className="rounded-xl" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="phone">Phone Number *</Label>
-          <Input id="phone" name="phone" required className="rounded-xl" />
+          <Label htmlFor="address">Address</Label>
+          <Input data-testid="input-address" id="address" name="address" className="rounded-xl" placeholder="Enter address" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="courseInterested">Interested Course *</Label>
-          <Input id="courseInterested" name="courseInterested" required className="rounded-xl" placeholder="e.g. Class 11 PCM" />
+          <Select value={courseInterested} onValueChange={setCourseInterested}>
+            <SelectTrigger data-testid="select-courseInterested" className="rounded-xl">
+              <SelectValue placeholder="Select a course..." />
+            </SelectTrigger>
+            <SelectContent>
+              {courses && courses.length > 0 ? (
+                courses.filter(c => c.status === "Active").map(course => (
+                  <SelectItem key={course.id} value={course.name}>
+                    {course.name}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="_none" disabled>No courses available</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
         </div>
       </div>
-      <Button type="submit" className="w-full rounded-xl mt-2" disabled={createMutation.isPending}>
+      <Button data-testid="button-saveEnquiry" type="submit" className="w-full rounded-xl mt-2" disabled={createMutation.isPending}>
         {createMutation.isPending ? "Adding..." : "Save Enquiry"}
       </Button>
     </form>

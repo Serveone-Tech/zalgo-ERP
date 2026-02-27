@@ -9,6 +9,8 @@ export const leads = pgTable("leads", {
   studentName: text("student_name").notNull(),
   parentName: text("parent_name"),
   phone: text("phone").notNull(),
+  parentPhone: text("parent_phone"),
+  address: text("address"),
   courseInterested: text("course_interested").notNull(),
   status: text("status").notNull().default("New"), // New, Follow-up, Converted, Dropped
   createdAt: timestamp("created_at").defaultNow(),
