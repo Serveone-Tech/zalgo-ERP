@@ -2,12 +2,16 @@ import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
 const httpServer = createServer(app);
+
+const isProduction = process.env.NODE_ENV === "production";
 
 declare module "http" {
   interface IncomingMessage {
@@ -26,18 +30,61 @@ declare module "express-session" {
   }
 }
 
-app.use(express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } }));
-app.use(express.urlencoded({ extended: false }));
+// --- SECURITY: HTTP Headers via Helmet ---
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
 
+// --- SECURITY: Rate Limiting ---
+// Global rate limit: 200 requests per 15 minutes per IP
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests, please try again later." },
+});
+
+// Strict rate limit for login: 10 attempts per 15 minutes per IP
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many login attempts. Please wait 15 minutes and try again." },
+  skipSuccessfulRequests: true,
+});
+
+app.use("/api", globalLimiter);
+app.use("/api/auth/login", loginLimiter);
+
+// --- Body Parsing: 2MB limit to prevent large payload attacks ---
+app.use(express.json({ limit: "2mb", verify: (req, _res, buf) => { req.rawBody = buf; } }));
+app.use(express.urlencoded({ extended: false, limit: "2mb" }));
+
+// --- Session Store ---
 const PgSession = connectPgSimple(session);
 const pgPool = new Pool({ connectionString: process.env.DATABASE_URL });
 
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret && isProduction) {
+  console.error("FATAL: SESSION_SECRET environment variable is not set in production!");
+  process.exit(1);
+}
+
 app.use(session({
   store: new PgSession({ pool: pgPool, tableName: "session", createTableIfMissing: true }),
-  secret: process.env.SESSION_SECRET || "badam-singh-erp-secret",
+  secret: sessionSecret || "dev-only-secret-not-for-production",
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true },
+  name: "bse.sid",
+  cookie: {
+    secure: isProduction,
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  },
 }));
 
 export function log(message: string, source = "express") {
@@ -75,12 +122,12 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-    console.error("Internal Server Error:", err);
+    if (!isProduction) console.error("Internal Server Error:", err);
     if (res.headersSent) return next(err);
     return res.status(status).json({ message });
   });
 
-  if (process.env.NODE_ENV === "production") {
+  if (isProduction) {
     serveStatic(app);
   } else {
     const { setupVite } = await import("./vite");
