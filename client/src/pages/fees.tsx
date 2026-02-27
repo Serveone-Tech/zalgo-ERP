@@ -399,9 +399,9 @@ function CreateFeePlanForm({ students, courses, onSuccess }: { students: Student
         </div>
         <div className="col-span-2 space-y-1.5">
           <Label>Course</Label>
-          <Select value={courseId} onValueChange={setCourseId}>
+          <Select value={courseId || "none"} onValueChange={v => setCourseId(v === "none" ? "" : v)}>
             <SelectTrigger><SelectValue placeholder="Select course (optional)" /></SelectTrigger>
-            <SelectContent><SelectItem value="">None</SelectItem>{courses.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name} — ₹{c.fee.toLocaleString('en-IN')}</SelectItem>)}</SelectContent>
+            <SelectContent><SelectItem value="none">None (No course)</SelectItem>{courses.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name} — ₹{c.fee.toLocaleString('en-IN')}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
