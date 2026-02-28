@@ -4,7 +4,7 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import { loginLimiter, globalLimiter } from "./middleware/rate-limit";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -37,26 +37,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// --- SECURITY: Rate Limiting ---
-// Global rate limit: 200 requests per 15 minutes per IP
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: "Too many requests, please try again later." },
-});
-
-// Strict rate limit for login: 10 attempts per 15 minutes per IP
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: "Too many login attempts. Please wait 15 minutes and try again." },
-  skipSuccessfulRequests: true,
-});
-
+// --- SECURITY: Rate Limiting (imported from middleware/rate-limit.ts) ---
 app.use("/api", globalLimiter);
 app.use("/api/auth/login", loginLimiter);
 

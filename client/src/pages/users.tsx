@@ -10,13 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, ShieldCheck, User, Eye, Pencil, Trash } from "lucide-react";
+import { Plus, Edit, Trash2, ShieldCheck, User, Eye, Pencil, Trash, ShieldAlert, ChevronDown, ChevronUp, Unlock, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/auth";
 import {
   MODULES, parsePermissionsMatrix, buildPermissionsArray, fullPermissionsMatrix,
   type PermAction
 } from "@/lib/permissions";
 import type { Branch } from "@shared/schema";
+
+interface BlockedIPEntry {
+  ip: string;
+  blockedAt: string;
+  attempts: number;
+}
 
 interface SystemUser {
   id: number;
@@ -54,9 +60,29 @@ export default function UsersPage() {
   const [editing, setEditing] = useState<SystemUser | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [permMatrix, setPermMatrix] = useState<Record<string, Record<PermAction, boolean>>>(emptyMatrix());
+  const [showBlockedIPs, setShowBlockedIPs] = useState(false);
 
   const { data: users = [], isLoading } = useQuery<SystemUser[]>({ queryKey: ["/api/auth/users"] });
   const { data: branches = [] } = useQuery<Branch[]>({ queryKey: ["/api/branches"] });
+  const { data: blockedIPs = [], refetch: refetchBlockedIPs } = useQuery<BlockedIPEntry[]>({
+    queryKey: ["/api/admin/blocked-ips"],
+    enabled: showBlockedIPs,
+    queryFn: async () => {
+      const res = await fetch("/api/admin/blocked-ips", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    refetchInterval: showBlockedIPs ? 15000 : false,
+  });
+
+  const unblockMut = useMutation({
+    mutationFn: (ip: string) => apiRequest("DELETE", `/api/admin/blocked-ips/${encodeURIComponent(ip)}`),
+    onSuccess: (_data, ip) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/blocked-ips"] });
+      toast({ title: `IP ${ip} unblocked successfully` });
+    },
+    onError: () => toast({ title: "Failed to unblock IP", variant: "destructive" }),
+  });
 
   const createMut = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/auth/users", data),
@@ -389,6 +415,101 @@ export default function UsersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Blocked IPs — Admin Only, Hidden by Default */}
+      <div className="border border-border/50 rounded-2xl overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowBlockedIPs(v => !v)}
+          className="w-full flex items-center justify-between px-5 py-4 bg-card hover:bg-muted/30 transition-colors"
+          data-testid="toggle-blocked-ips"
+        >
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="w-5 h-5 text-orange-500" />
+            <div className="text-left">
+              <p className="font-semibold text-sm text-foreground">Blocked IPs</p>
+              <p className="text-xs text-muted-foreground">IPs blocked due to too many failed login attempts</p>
+            </div>
+            {blockedIPs.length > 0 && (
+              <Badge variant="destructive" className="ml-2">{blockedIPs.length} blocked</Badge>
+            )}
+          </div>
+          {showBlockedIPs ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+        </button>
+
+        {showBlockedIPs && (
+          <div className="border-t border-border/40">
+            <div className="flex items-center justify-between px-5 py-3 bg-muted/20">
+              <p className="text-xs text-muted-foreground">Auto-unblocked after 15 minutes. Manually unblock if needed.</p>
+              <Button
+                variant="ghost" size="sm"
+                onClick={() => refetchBlockedIPs()}
+                className="h-7 gap-1.5 text-xs"
+                data-testid="button-refresh-blocked-ips"
+              >
+                <RefreshCw className="w-3 h-3" /> Refresh
+              </Button>
+            </div>
+
+            {blockedIPs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                <ShieldCheck className="w-10 h-10 text-green-400 mb-2" />
+                <p className="text-sm font-medium text-green-600">No blocked IPs right now</p>
+                <p className="text-xs mt-1">All clear — no suspicious login activity detected</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead>IP Address</TableHead>
+                      <TableHead>Blocked At</TableHead>
+                      <TableHead>Failed Attempts</TableHead>
+                      <TableHead>Auto Unblocks In</TableHead>
+                      <TableHead className="w-24">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {blockedIPs.map((entry) => {
+                      const blockedAt = new Date(entry.blockedAt);
+                      const unblockAt = new Date(blockedAt.getTime() + 15 * 60 * 1000);
+                      const minsLeft = Math.max(0, Math.ceil((unblockAt.getTime() - Date.now()) / 60000));
+                      return (
+                        <TableRow key={entry.ip} data-testid={`row-blocked-ip-${entry.ip}`}>
+                          <TableCell>
+                            <code className="text-sm font-mono bg-muted px-2 py-0.5 rounded">{entry.ip}</code>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {blockedAt.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="destructive" className="text-xs">{entry.attempts} attempts</Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {minsLeft > 0 ? `~${minsLeft} min` : "Expiring soon"}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 gap-1.5 text-xs text-green-600 border-green-300 hover:bg-green-50"
+                              onClick={() => unblockMut.mutate(entry.ip)}
+                              disabled={unblockMut.isPending}
+                              data-testid={`button-unblock-${entry.ip}`}
+                            >
+                              <Unlock className="w-3 h-3" /> Unblock
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

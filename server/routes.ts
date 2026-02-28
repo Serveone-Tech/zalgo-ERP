@@ -17,8 +17,21 @@ import notificationsRouter from "./routes/notifications.routes";
 import { z } from "zod";
 import { api } from "@shared/routes";
 import { Router } from "express";
-import { requireAuth } from "./controllers/auth.controller";
+import { requireAuth, requireAdmin } from "./controllers/auth.controller";
+import { getBlockedIPs, unblockIP } from "./middleware/rate-limit";
 import bcrypt from "bcrypt";
+
+// Admin-only: Blocked IP management
+const adminRouter = Router();
+adminRouter.get("/blocked-ips", requireAdmin, (_req, res) => {
+  res.json(getBlockedIPs());
+});
+adminRouter.delete("/blocked-ips/:ip", requireAdmin, (req, res) => {
+  const ip = decodeURIComponent(req.params.ip);
+  const success = unblockIP(ip);
+  if (!success) return res.status(404).json({ message: "IP not found in blocked list" });
+  res.json({ message: `IP ${ip} unblocked successfully` });
+});
 
 const enrollmentsRouter = Router();
 enrollmentsRouter.get("/", requireAuth, async (req, res) => {
@@ -68,6 +81,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.use("/api/communications", communicationsRouter);
   app.use("/api/dashboard", dashboardRouter);
   app.use("/api/notifications", notificationsRouter);
+  app.use("/api/admin", adminRouter);
 
   await seedDatabase().catch(console.error);
 
