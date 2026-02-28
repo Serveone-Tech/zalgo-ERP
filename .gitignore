@@ -3,4 +3,15 @@ dist
 .DS_Store
 server/public
 vite.config.ts.*
-*.tar.gz
+node_modules/
+dist/
+.env
+*.log
+# Replit internal files
+.local/
+.replit
+replit.nix
+*.agent_state*
+log-query.db
+log-query.db-shm
+log-query.db-wal
