@@ -216,3 +216,31 @@ export function requireAdmin(req: Request, res: Response, next: any) {
   if (req.session.userRole !== "admin") return res.status(403).json({ message: "Admin access required" });
   next();
 }
+
+// Maps HTTP method to permission action
+function methodToAction(method: string): "read" | "write" | "delete" {
+  if (method === "DELETE") return "delete";
+  if (method === "GET") return "read";
+  return "write";
+}
+
+function hasPermission(permissions: string[], module: string, action: "read" | "write" | "delete"): boolean {
+  if (permissions.includes(`${module}:${action}`)) return true;
+  // Legacy flat format e.g. "leads" — treat as read-only
+  if (action === "read" && permissions.includes(module)) return true;
+  return false;
+}
+
+export function requirePermission(module: string) {
+  return (req: Request, res: Response, next: any) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Authentication required" });
+    // Admin bypasses all permission checks
+    if (req.session.userRole === "admin") return next();
+    const action = methodToAction(req.method);
+    const permissions = req.session.userPermissions ?? [];
+    if (!hasPermission(permissions, module, action)) {
+      return res.status(403).json({ message: `Access denied: you do not have ${action} permission for '${module}'.` });
+    }
+    next();
+  };
+}

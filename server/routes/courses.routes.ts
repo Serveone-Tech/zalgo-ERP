@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { CoursesController } from "../controllers/courses.controller";
-import { requireAuth } from "../controllers/auth.controller";
+import { requireAuth, requirePermission } from "../controllers/auth.controller";
 
 const router = Router();
-router.get("/", requireAuth, CoursesController.list);
-router.get("/:id", requireAuth, CoursesController.get);
-router.get("/:id/students", requireAuth, CoursesController.students);
-router.post("/", requireAuth, CoursesController.create);
-router.put("/:id", requireAuth, CoursesController.update);
-router.delete("/:id", requireAuth, CoursesController.remove);
+const perm = requirePermission("courses");
+router.get("/", requireAuth, perm, CoursesController.list);
+router.get("/:id", requireAuth, perm, CoursesController.get);
+router.get("/:id/students", requireAuth, perm, CoursesController.students);
+router.post("/", requireAuth, perm, CoursesController.create);
+router.put("/:id", requireAuth, perm, CoursesController.update);
+router.delete("/:id", requireAuth, perm, CoursesController.remove);
 export default router;
