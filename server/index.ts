@@ -31,6 +31,9 @@ declare module "express-session" {
   }
 }
 
+// Trust reverse proxy (Replit/Nginx) for correct IP detection
+app.set("trust proxy", 1);
+
 // --- SECURITY: HTTP Headers via Helmet ---
 app.use(helmet({
   contentSecurityPolicy: false,
