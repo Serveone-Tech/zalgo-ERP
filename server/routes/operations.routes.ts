@@ -11,6 +11,7 @@ const transactionsRouter = Router();
 const txPerm = requirePermission("transactions");
 transactionsRouter.get("/", requireAuth, txPerm, TransactionsController.list);
 transactionsRouter.post("/", requireAuth, txPerm, TransactionsController.create);
+transactionsRouter.delete("/:id", requireAuth, txPerm, TransactionsController.remove);
 
 const communicationsRouter = Router();
 const commPerm = requirePermission("communications");

@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/auth";
 import { useBranch } from "@/contexts/branch";
 import { useLocation } from "wouter";
 import {
-  Users, UserSquare2, GraduationCap, CreditCard, AlertCircle, ArrowRight
+  Users, UserSquare2, GraduationCap, CreditCard, AlertCircle, ArrowRight, TrendingUp, TrendingDown, IndianRupee
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -84,6 +84,24 @@ export default function Dashboard() {
       path: "/fees",
       testid: "card-pending-fees",
     },
+    {
+      title: "Total Income",
+      value: `₹${(stats?.totalIncome ?? 0).toLocaleString("en-IN")}`,
+      icon: TrendingUp,
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+      path: "/transactions",
+      testid: "card-total-income",
+    },
+    {
+      title: "Total Expense",
+      value: `₹${(stats?.totalExpense ?? 0).toLocaleString("en-IN")}`,
+      icon: TrendingDown,
+      color: "text-red-600",
+      bg: "bg-red-50",
+      path: "/transactions",
+      testid: "card-total-expense",
+    },
   ];
 
   return (
@@ -99,7 +117,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
         {statCards.map((stat) => (
           <Card
             key={stat.testid}

@@ -43,6 +43,11 @@ export const TransactionsController = {
       throw err;
     }
   },
+
+  async remove(req: Request, res: Response) {
+    await storage.deleteTransaction(Number(req.params.id));
+    res.status(204).send();
+  },
 };
 
 export const CommunicationsController = {

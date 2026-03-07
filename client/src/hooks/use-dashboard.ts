@@ -7,6 +7,8 @@ interface DashboardStats {
   totalTeachers: number;
   totalRevenue: number;
   pendingFees: number;
+  totalIncome: number;
+  totalExpense: number;
   recentLeads: any[];
   courseEnrollments: { courseName: string; studentCount: number }[];
 }

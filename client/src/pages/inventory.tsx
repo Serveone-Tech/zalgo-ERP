@@ -5,10 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Package, AlertTriangle } from "lucide-react";
+import { Plus, Package, AlertTriangle, Trash2, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ImportDialog, type FieldDef } from "@/components/import-dialog";
+import { BranchSelect, parseBranchId } from "@/components/branch-select";
+import { useBranches } from "@/hooks/use-branches";
+import { useAuth } from "@/contexts/auth";
 
 function useInventory() {
   return useQuery({
@@ -30,8 +33,16 @@ const INVENTORY_FIELDS: FieldDef[] = [
 export default function InventoryPage() {
   const { data: items, isLoading } = useInventory();
   const [isOpen, setIsOpen] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [branchId, setBranchId] = useState("");
+  const [editBranchId, setEditBranchId] = useState("");
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { data: branches = [] } = useBranches();
+  const getBranchName = (id: number | null | undefined) => branches.find(b => b.id === id)?.name ?? "—";
+  const canEdit = user?.role === "admin" || user?.role === "staff";
+  const canDelete = user?.role === "admin";
 
   const handleBulkImport = async (rows: Record<string, string>[]) => {
     let success = 0; let failed = 0;
@@ -68,6 +79,35 @@ export default function InventoryPage() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await fetch(`/api/inventory/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      toast({ title: "Item updated" });
+      setEditItem(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/inventory/${id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      toast({ title: "Item deleted" });
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -75,6 +115,21 @@ export default function InventoryPage() {
       itemName: fd.get("itemName"),
       category: fd.get("category") || null,
       quantity: Number(fd.get("quantity")),
+      branchId: parseBranchId(branchId) ?? (user?.branchId ?? null),
+    });
+  };
+
+  const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    updateMutation.mutate({
+      id: editItem.id,
+      data: {
+        itemName: fd.get("itemName"),
+        category: fd.get("category") || null,
+        quantity: Number(fd.get("quantity")),
+        branchId: parseBranchId(editBranchId) ?? editItem.branchId ?? null,
+      },
     });
   };
 
@@ -110,6 +165,7 @@ export default function InventoryPage() {
                 <Label>Quantity *</Label>
                 <Input name="quantity" type="number" required min="0" className="rounded-xl" placeholder="0" />
               </div>
+              <BranchSelect value={branchId} onChange={setBranchId} />
               <Button type="submit" className="w-full rounded-xl" disabled={createMutation.isPending}>
                 {createMutation.isPending ? "Adding..." : "Add Item"}
               </Button>
@@ -155,8 +211,10 @@ export default function InventoryPage() {
                   <TableHead>Item Name</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Quantity</TableHead>
+                  <TableHead>Branch</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Last Updated</TableHead>
+                  <TableHead className="w-[80px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -183,6 +241,7 @@ export default function InventoryPage() {
                         </span>
                       </div>
                     </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{getBranchName(item.branchId)}</TableCell>
                     <TableCell>
                       <Badge
                         variant={item.quantity === 0 ? "destructive" : item.quantity < 5 ? "secondary" : "default"}
@@ -194,6 +253,20 @@ export default function InventoryPage() {
                     <TableCell className="text-sm text-muted-foreground">
                       {item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString("en-IN") : "—"}
                     </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        {canEdit && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary" onClick={() => { setEditItem(item); setEditBranchId(item.branchId ? String(item.branchId) : ""); }} data-testid={`btn-edit-inventory-${item.id}`}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:bg-destructive/10" onClick={() => deleteMutation.mutate(item.id)} data-testid={`btn-delete-inventory-${item.id}`}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -201,6 +274,33 @@ export default function InventoryPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Dialog */}
+      {editItem && (
+        <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
+          <DialogContent className="sm:max-w-md rounded-2xl">
+            <DialogHeader><DialogTitle>Edit — {editItem.itemName}</DialogTitle></DialogHeader>
+            <form onSubmit={handleEditSubmit} className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label>Item Name *</Label>
+                <Input name="itemName" required className="rounded-xl" defaultValue={editItem.itemName} />
+              </div>
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Input name="category" className="rounded-xl" defaultValue={editItem.category || ""} />
+              </div>
+              <div className="space-y-2">
+                <Label>Quantity *</Label>
+                <Input name="quantity" type="number" required min="0" className="rounded-xl" defaultValue={editItem.quantity} />
+              </div>
+              <BranchSelect value={editBranchId} onChange={setEditBranchId} />
+              <Button type="submit" className="w-full rounded-xl" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

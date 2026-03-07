@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth";
+import { useBranches } from "@/hooks/use-branches";
 import type { Teacher } from "@shared/schema";
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
@@ -32,6 +33,8 @@ export default function TeacherViewPage() {
   const queryClient = useQueryClient();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const canEdit = user?.role === "admin" || user?.role === "staff";
+  const { data: branches = [] } = useBranches();
+  const getBranchName = (id: number | null | undefined) => branches.find(b => b.id === id)?.name ?? "—";
 
   const teacherId = Number(id);
 
@@ -128,6 +131,7 @@ export default function TeacherViewPage() {
             </CardHeader>
             <CardContent>
               <InfoRow label="Full Name" value={teacher.name} />
+              <InfoRow label="Branch" value={getBranchName((teacher as any).branchId)} />
               <InfoRow label="Status" value={teacher.status} />
               <InfoRow label="Joined" value={teacher.createdAt ? format(new Date(teacher.createdAt), "dd MMM yyyy") : undefined} />
             </CardContent>

@@ -1,93 +1,180 @@
 import { useState } from "react";
-import { useLeads, useCreateLead, useUpdateLead, useDeleteLead } from "@/hooks/use-leads";
+import {
+  useLeads,
+  useCreateLead,
+  useUpdateLead,
+  useDeleteLead,
+} from "@/hooks/use-leads";
 import { useCourses } from "@/hooks/use-courses";
+import { BranchSelect, parseBranchId } from "@/components/branch-select";
+import { useBranches } from "@/hooks/use-branches";
 import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 import { format } from "date-fns";
 import { useLocation, useSearch } from "wouter";
-import { DateFilter, DateFilterValue, filterFromSearch, buildApiParams } from "@/components/date-filter";
+import {
+  DateFilter,
+  DateFilterValue,
+  filterFromSearch,
+  buildApiParams,
+} from "@/components/date-filter";
 import { usePermission } from "@/hooks/use-permission";
-import { 
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, MoreHorizontal, Trash2, Eye } from "lucide-react";
-import { 
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import { 
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useBranch } from "@/contexts/branch";
 
 const LEAD_FIELDS: FieldDef[] = [
-  { key: "studentName", label: "Student Name", required: true, sample: "Rahul Kumar" },
+  {
+    key: "studentName",
+    label: "Student Name",
+    required: true,
+    sample: "Rahul Kumar",
+  },
   { key: "parentName", label: "Parent Name", sample: "Sanjay Kumar" },
-  { key: "phone", label: "Student Mobile", required: true, sample: "9876543210" },
+  {
+    key: "phone",
+    label: "Student Mobile",
+    required: true,
+    sample: "9876543210",
+  },
   { key: "parentPhone", label: "Parent Mobile", sample: "9988776655" },
   { key: "address", label: "Address", sample: "123, Model Town, Delhi" },
-  { key: "courseInterested", label: "Interested Course", required: true, sample: "JEE Main & Advanced" },
+  {
+    key: "courseInterested",
+    label: "Interested Course",
+    required: true,
+    sample: "JEE Main & Advanced",
+  },
 ];
 
 export default function LeadsPage() {
   const searchStr = useSearch();
   const { canWrite, canDelete } = usePermission("leads");
-  const [filter, setFilter] = useState<DateFilterValue>(() => filterFromSearch(searchStr));
+  const { selectedBranchId } = useBranch();
+  const [filter, setFilter] = useState<DateFilterValue>(() =>
+    filterFromSearch(searchStr),
+  );
   const apiParams = buildApiParams(filter);
-  const { data: leads, isLoading } = useLeads(apiParams ? Object.fromEntries(new URLSearchParams(apiParams.slice(1))) : undefined);
+  const queryParams = {
+    ...(apiParams
+      ? Object.fromEntries(new URLSearchParams(apiParams.slice(1)))
+      : {}),
+    ...(selectedBranchId ? { branchId: String(selectedBranchId) } : {}),
+  };
+
+  const { data: leads, isLoading } = useLeads(
+    Object.keys(queryParams).length ? queryParams : undefined,
+  );
   const createLead = useCreateLead();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const { data: branches = [] } = useBranches();
+  const getBranchName = (id: number | null | undefined) =>
+    branches.find((b) => b.id === id)?.name ?? "—";
 
   const handleBulkImport = async (rows: Record<string, string>[]) => {
-    let success = 0; let failed = 0;
+    let success = 0;
+    let failed = 0;
     for (const row of rows) {
       try {
         await new Promise<void>((resolve, reject) => {
-          createLead.mutate({
-            studentName: row.studentName || "",
-            parentName: row.parentName || "",
-            phone: row.phone || "",
-            parentPhone: row.parentPhone || "",
-            address: row.address || "",
-            courseInterested: row.courseInterested || "",
-            status: "New",
-          }, { onSuccess: () => { success++; resolve(); }, onError: () => { failed++; resolve(); } });
+          createLead.mutate(
+            {
+              studentName: row.studentName || "",
+              parentName: row.parentName || "",
+              phone: row.phone || "",
+              parentPhone: row.parentPhone || "",
+              address: row.address || "",
+              courseInterested: row.courseInterested || "",
+              status: "New",
+            },
+            {
+              onSuccess: () => {
+                success++;
+                resolve();
+              },
+              onError: () => {
+                failed++;
+                resolve();
+              },
+            },
+          );
         });
-      } catch { failed++; }
+      } catch {
+        failed++;
+      }
     }
     return { success, failed };
   };
 
-  const filteredLeads = leads?.filter(lead => 
-    lead.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.phone.includes(searchTerm)
+  const filteredLeads = leads?.filter(
+    (lead) =>
+      lead.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.phone.includes(searchTerm),
   );
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-foreground">Enquiries</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage prospective student leads</p>
+          <h1 className="text-2xl font-display font-bold text-foreground">
+            Enquiries
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Manage prospective student leads
+          </p>
         </div>
-        
+
         <div className="flex w-full sm:w-auto items-center gap-3 flex-wrap">
           <DateFilter value={filter} onChange={setFilter} />
           <div className="relative flex-1 sm:w-56">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search leads..." 
+            <Input
+              placeholder="Search leads..."
               className="pl-9 bg-card border-border/50 rounded-xl"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
-          {canWrite && <ImportDialog entityName="Enquiries" fields={LEAD_FIELDS} onImport={handleBulkImport} />}
+
+          {canWrite && (
+            <ImportDialog
+              entityName="Enquiries"
+              fields={LEAD_FIELDS}
+              onImport={handleBulkImport}
+            />
+          )}
 
           {canWrite && (
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
@@ -99,7 +186,9 @@ export default function LeadsPage() {
               </DialogTrigger>
               <DialogContent className="sm:max-w-md rounded-2xl">
                 <DialogHeader>
-                  <DialogTitle className="font-display">New Enquiry</DialogTitle>
+                  <DialogTitle className="font-display">
+                    New Enquiry
+                  </DialogTitle>
                 </DialogHeader>
                 <LeadForm onSuccess={() => setIsAddOpen(false)} />
               </DialogContent>
@@ -115,6 +204,7 @@ export default function LeadsPage() {
               <TableHead className="font-semibold">Student Name</TableHead>
               <TableHead className="font-semibold">Phone</TableHead>
               <TableHead className="font-semibold">Course</TableHead>
+              <TableHead className="font-semibold">Branch</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Date</TableHead>
               <TableHead className="w-[80px]"></TableHead>
@@ -122,27 +212,54 @@ export default function LeadsPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-8 text-muted-foreground"
+                >
+                  Loading...
+                </TableCell>
+              </TableRow>
             ) : filteredLeads?.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No enquiries found</TableCell></TableRow>
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-8 text-muted-foreground"
+                >
+                  No enquiries found
+                </TableCell>
+              </TableRow>
             ) : (
               filteredLeads?.map((lead) => (
                 <TableRow key={lead.id} className="hover:bg-accent/30">
-                  <TableCell className="font-medium">{lead.studentName}</TableCell>
+                  <TableCell className="font-medium">
+                    {lead.studentName}
+                  </TableCell>
                   <TableCell>{lead.phone}</TableCell>
                   <TableCell>{lead.courseInterested}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {getBranchName(lead.branchId)}
+                  </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={
-                      lead.status === 'New' ? 'border-blue-200 text-blue-700 bg-blue-50' : 
-                      lead.status === 'Converted' ? 'border-emerald-200 text-emerald-700 bg-emerald-50' : 
-                      lead.status === 'Follow-up' ? 'border-amber-200 text-amber-700 bg-amber-50' :
-                      'border-slate-200 text-slate-700 bg-slate-50'
-                    }>
+                    <Badge
+                      variant="outline"
+                      className={
+                        lead.status === "New"
+                          ? "border-blue-200 text-blue-700 bg-blue-50"
+                          : lead.status === "Converted"
+                            ? "border-emerald-200 text-emerald-700 bg-emerald-50"
+                            : lead.status === "Follow-up"
+                              ? "border-amber-200 text-amber-700 bg-amber-50"
+                              : "border-slate-200 text-slate-700 bg-slate-50"
+                      }
+                    >
                       {lead.status}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {lead.createdAt ? format(new Date(lead.createdAt), 'MMM d, yyyy') : 'N/A'}
+                    {lead.createdAt
+                      ? format(new Date(lead.createdAt), "MMM d, yyyy")
+                      : "N/A"}
                   </TableCell>
                   <TableCell>
                     <LeadActions lead={lead} />
@@ -165,22 +282,31 @@ function LeadActions({ lead }: { lead: any }) {
   const { canDelete } = usePermission("leads");
 
   const handleDelete = () => {
-    if(confirm("Are you sure you want to delete this lead?")) {
+    if (confirm("Are you sure you want to delete this lead?")) {
       deleteMutation.mutate(lead.id, {
-        onSuccess: () => toast({ title: "Lead deleted" })
+        onSuccess: () => toast({ title: "Lead deleted" }),
       });
     }
   };
 
   const updateStatus = (status: string) => {
-    updateMutation.mutate({ id: lead.id, status }, {
-      onSuccess: () => toast({ title: `Status updated to ${status}` })
-    });
+    updateMutation.mutate(
+      { id: lead.id, status },
+      {
+        onSuccess: () => toast({ title: `Status updated to ${status}` }),
+      },
+    );
   };
 
   return (
     <div className="flex items-center gap-1">
-      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary" onClick={() => navigate(`/leads/${lead.id}`)} data-testid={`btn-view-lead-${lead.id}`}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary"
+        onClick={() => navigate(`/leads/${lead.id}`)}
+        data-testid={`btn-view-lead-${lead.id}`}
+      >
         <Eye className="h-4 w-4" />
       </Button>
       <DropdownMenu>
@@ -193,11 +319,20 @@ function LeadActions({ lead }: { lead: any }) {
           <DropdownMenuItem onClick={() => navigate(`/leads/${lead.id}`)}>
             <Eye className="h-4 w-4 mr-2" /> View Details
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => updateStatus('Follow-up')}>Mark Follow-up</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => updateStatus('Converted')}>Mark Converted</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => updateStatus('Dropped')}>Mark Dropped</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => updateStatus("Follow-up")}>
+            Mark Follow-up
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => updateStatus("Converted")}>
+            Mark Converted
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => updateStatus("Dropped")}>
+            Mark Dropped
+          </DropdownMenuItem>
           {canDelete && (
-            <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:bg-destructive/10">
+            <DropdownMenuItem
+              onClick={handleDelete}
+              className="text-destructive focus:bg-destructive/10"
+            >
               <Trash2 className="h-4 w-4 mr-2" /> Delete
             </DropdownMenuItem>
           )}
@@ -212,6 +347,7 @@ function LeadForm({ onSuccess }: { onSuccess: () => void }) {
   const { data: courses } = useCourses();
   const { toast } = useToast();
   const [courseInterested, setCourseInterested] = useState("");
+  const [branchId, setBranchId] = useState("");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -220,20 +356,24 @@ function LeadForm({ onSuccess }: { onSuccess: () => void }) {
       toast({ title: "Please select a course", variant: "destructive" });
       return;
     }
-    createMutation.mutate({
-      studentName: formData.get("studentName") as string,
-      parentName: formData.get("parentName") as string,
-      phone: formData.get("phone") as string,
-      parentPhone: formData.get("parentPhone") as string,
-      address: formData.get("address") as string,
-      courseInterested,
-      status: "New",
-    }, {
-      onSuccess: () => {
-        toast({ title: "Enquiry added successfully" });
-        onSuccess();
-      }
-    });
+    createMutation.mutate(
+      {
+        studentName: formData.get("studentName") as string,
+        parentName: formData.get("parentName") as string,
+        phone: formData.get("phone") as string,
+        parentPhone: formData.get("parentPhone") as string,
+        address: formData.get("address") as string,
+        courseInterested,
+        status: "New",
+        branchId: parseBranchId(branchId),
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Enquiry added successfully" });
+          onSuccess();
+        },
+      },
+    );
   };
 
   return (
@@ -241,47 +381,91 @@ function LeadForm({ onSuccess }: { onSuccess: () => void }) {
       <div className="grid grid-cols-1 gap-4">
         <div className="space-y-2">
           <Label htmlFor="studentName">Student Name *</Label>
-          <Input data-testid="input-studentName" id="studentName" name="studentName" required className="rounded-xl" />
+          <Input
+            data-testid="input-studentName"
+            id="studentName"
+            name="studentName"
+            required
+            className="rounded-xl"
+          />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label htmlFor="parentName">Parent Name</Label>
-            <Input data-testid="input-parentName" id="parentName" name="parentName" className="rounded-xl" />
+            <Input
+              data-testid="input-parentName"
+              id="parentName"
+              name="parentName"
+              className="rounded-xl"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="parentPhone">Parent Mobile</Label>
-            <Input data-testid="input-parentPhone" id="parentPhone" name="parentPhone" type="tel" className="rounded-xl" placeholder="Parent mobile no." />
+            <Input
+              data-testid="input-parentPhone"
+              id="parentPhone"
+              name="parentPhone"
+              type="tel"
+              className="rounded-xl"
+              placeholder="Parent mobile no."
+            />
           </div>
         </div>
         <div className="space-y-2">
           <Label htmlFor="phone">Student Mobile *</Label>
-          <Input data-testid="input-phone" id="phone" name="phone" type="tel" required className="rounded-xl" />
+          <Input
+            data-testid="input-phone"
+            id="phone"
+            name="phone"
+            type="tel"
+            required
+            className="rounded-xl"
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="address">Address</Label>
-          <Input data-testid="input-address" id="address" name="address" className="rounded-xl" placeholder="Enter address" />
+          <Input
+            data-testid="input-address"
+            id="address"
+            name="address"
+            className="rounded-xl"
+            placeholder="Enter address"
+          />
         </div>
+        <BranchSelect value={branchId} onChange={setBranchId} />
         <div className="space-y-2">
           <Label htmlFor="courseInterested">Interested Course *</Label>
           <Select value={courseInterested} onValueChange={setCourseInterested}>
-            <SelectTrigger data-testid="select-courseInterested" className="rounded-xl">
+            <SelectTrigger
+              data-testid="select-courseInterested"
+              className="rounded-xl"
+            >
               <SelectValue placeholder="Select a course..." />
             </SelectTrigger>
             <SelectContent>
               {courses && courses.length > 0 ? (
-                courses.filter(c => c.status === "Active").map(course => (
-                  <SelectItem key={course.id} value={course.name}>
-                    {course.name}
-                  </SelectItem>
-                ))
+                courses
+                  .filter((c) => c.status === "Active")
+                  .map((course) => (
+                    <SelectItem key={course.id} value={course.name}>
+                      {course.name}
+                    </SelectItem>
+                  ))
               ) : (
-                <SelectItem value="_none" disabled>No courses available</SelectItem>
+                <SelectItem value="_none" disabled>
+                  No courses available
+                </SelectItem>
               )}
             </SelectContent>
           </Select>
         </div>
       </div>
-      <Button data-testid="button-saveEnquiry" type="submit" className="w-full rounded-xl mt-2" disabled={createMutation.isPending}>
+      <Button
+        data-testid="button-saveEnquiry"
+        type="submit"
+        className="w-full rounded-xl mt-2"
+        disabled={createMutation.isPending}
+      >
         {createMutation.isPending ? "Adding..." : "Save Enquiry"}
       </Button>
     </form>

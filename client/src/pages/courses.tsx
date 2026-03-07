@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useCourses, useCreateCourse, useDeleteCourse, useCourseStudents } from "@/hooks/use-courses";
+import { BranchSelect, parseBranchId } from "@/components/branch-select";
 import { useLocation } from "wouter";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -335,6 +336,7 @@ function MessagingForm({ recipientId, recipientType, courses, onSuccess }: { rec
 function CourseForm({ onSuccess }: { onSuccess: () => void }) {
   const createMutation = useCreateCourse();
   const { toast } = useToast();
+  const [branchId, setBranchId] = useState("");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -345,6 +347,7 @@ function CourseForm({ onSuccess }: { onSuccess: () => void }) {
       duration: formData.get("duration") as string,
       fee: Number(formData.get("fee")),
       status: "Active",
+      branchId: parseBranchId(branchId),
     }, {
       onSuccess: () => {
         toast({ title: "Course created successfully" });
@@ -373,6 +376,7 @@ function CourseForm({ onSuccess }: { onSuccess: () => void }) {
           <Input id="fee" name="fee" type="number" required className="rounded-xl" min="0" />
         </div>
       </div>
+      <BranchSelect value={branchId} onChange={setBranchId} />
       <Button type="submit" className="w-full rounded-xl mt-4" disabled={createMutation.isPending}>
         {createMutation.isPending ? "Creating..." : "Create Course"}
       </Button>

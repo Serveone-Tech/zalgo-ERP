@@ -3,11 +3,16 @@ import { api, buildUrl } from "@shared/routes";
 import { type InsertStudent } from "@shared/schema";
 
 export function useStudents(params?: Record<string, string>) {
-  const qs = params && Object.keys(params).length ? "?" + new URLSearchParams(params).toString() : "";
+  const qs =
+    params && Object.keys(params).length
+      ? "?" + new URLSearchParams(params).toString()
+      : "";
   return useQuery({
     queryKey: [api.students.list.path, params],
     queryFn: async () => {
-      const res = await fetch(`${api.students.list.path}${qs}`, { credentials: "include" });
+      const res = await fetch(`${api.students.list.path}${qs}`, {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Failed to fetch students");
       return api.students.list.responses[200].parse(await res.json());
     },
@@ -40,9 +45,13 @@ export function useDeleteStudent() {
   return useMutation({
     mutationFn: async (id: number) => {
       const url = buildUrl(api.students.delete.path, { id });
-      const res = await fetch(url, { method: api.students.delete.method, credentials: "include" });
+      const res = await fetch(url, {
+        method: api.students.delete.method,
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Failed to delete student");
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.students.list.path] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: [api.students.list.path] }),
   });
 }

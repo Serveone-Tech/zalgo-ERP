@@ -79,6 +79,7 @@ export const courses = pgTable("courses", {
   duration: text("duration").notNull(),
   fee: integer("fee").notNull(),
   status: text("status").notNull().default("Active"),
+  branchId: integer("branch_id").references(() => branches.id),
 });
 
 // ─── Enrollments ──────────────────────────────────────────────────────────────
@@ -171,6 +172,7 @@ export const inventory = pgTable("inventory", {
   itemName: text("item_name").notNull(),
   quantity: integer("quantity").notNull().default(0),
   category: text("category"),
+  branchId: integer("branch_id").references(() => branches.id),
   lastUpdated: timestamp("last_updated").defaultNow(),
 });
 
