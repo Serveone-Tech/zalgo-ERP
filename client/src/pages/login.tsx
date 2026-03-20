@@ -37,7 +37,7 @@ export default function LoginPage() {
             <GraduationCap className="w-8 h-8 text-primary" />
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-white">BADAM SINGH Classes</h1>
+            <h1 className="text-2xl font-bold text-white">Zalgo Edutech Classes</h1>
             <p className="text-sm text-white/50 mt-1">Institute Management System</p>
           </div>
         </div>
