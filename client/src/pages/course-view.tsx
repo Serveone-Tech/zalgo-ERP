@@ -243,7 +243,7 @@ export default function CourseViewPage() {
                   Course Fee
                 </span>
                 <span className="font-semibold">
-                  ₹{course.fee.toLocaleString("en-IN")}
+                  ${course.fee.toLocaleString("en-IN")}
                 </span>
               </div>
             </CardContent>
@@ -267,7 +267,7 @@ export default function CourseViewPage() {
               <InfoRow label="Duration" value={course.duration} />
               <InfoRow
                 label="Fee"
-                value={`₹${course.fee.toLocaleString("en-IN")}`}
+                value={`$${course.fee.toLocaleString("en-IN")}`}
               />
               <InfoRow label="Status" value={course.status} />
               <InfoRow label="Description" value={course.description} />
@@ -492,7 +492,7 @@ function EditCourseForm({
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Fee (₹) *</Label>
+          <Label>Fee ($) *</Label>
           <Input
             name="fee"
             type="number"

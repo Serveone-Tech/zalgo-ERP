@@ -152,7 +152,7 @@ export const FeeInstallmentsController = {
 
       // Create notification for whatsapp reminder mock
       console.log(
-        `[WhatsApp Mock] Fee payment recorded for student ${inst.studentId}: ₹${paidAmount}`,
+        `[WhatsApp Mock] Fee payment recorded for student ${inst.studentId}: $${paidAmount}`,
       );
 
       res.json(inst);

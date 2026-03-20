@@ -198,7 +198,7 @@ async function seedDatabase() {
       }
       await storage.createNotification({
         title: "Installment Overdue",
-        message: `${s1.name} has an overdue installment of ₹30,000`,
+        message: `${s1.name} has an overdue installment of $30,000`,
         type: "warning",
         relatedId: s1.id,
         relatedType: "student",
@@ -359,7 +359,7 @@ async function seedDatabase() {
     // Create overdue notification
     await storage.createNotification({
       title: "Fee Overdue",
-      message: "Priya Sharma has an overdue installment of ₹30,000",
+      message: "Priya Sharma has an overdue installment of $30,000",
       type: "warning",
       relatedId: s1.id,
       relatedType: "student",

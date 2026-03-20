@@ -117,7 +117,7 @@ export default function ReportsPage() {
           <StatCard title="Total Students" value={dashboard?.totalStudents || 0} icon={Users} color="bg-primary/10 text-primary" subtitle={`${activeStudents} active, ${inactiveStudents} inactive`} />
           <StatCard title="Active Enquiries" value={dashboard?.activeLeads || 0} icon={UserSquare2} color="bg-amber-50 text-amber-600" subtitle="Status: New" />
           <StatCard title="Total Teachers" value={dashboard?.totalTeachers || 0} icon={GraduationCap} color="bg-purple-50 text-purple-600" />
-          <StatCard title="Fee Collected" value={`₹${totalFeeCollected.toLocaleString("en-IN")}`} icon={CreditCard} color="bg-emerald-50 text-emerald-600" subtitle="Total payments received" />
+          <StatCard title="Fee Collected" value={`$${totalFeeCollected.toLocaleString("en-IN")}`} icon={CreditCard} color="bg-emerald-50 text-emerald-600" subtitle="Total payments received" />
         </div>
       </div>
 
@@ -132,7 +132,7 @@ export default function ReportsPage() {
                 <CreditCard className="w-4 h-4" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-emerald-600">₹{totalFeeCollected.toLocaleString("en-IN")}</p>
+            <p className="text-2xl font-bold text-emerald-600">${totalFeeCollected.toLocaleString("en-IN")}</p>
             <p className="text-xs text-muted-foreground mt-1">{fees?.length || 0} payment records</p>
           </div>
 
@@ -143,7 +143,7 @@ export default function ReportsPage() {
                 <AlertCircle className="w-4 h-4" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-amber-600">₹{totalPending.toLocaleString("en-IN")}</p>
+            <p className="text-2xl font-bold text-amber-600">${totalPending.toLocaleString("en-IN")}</p>
             <p className="text-xs text-muted-foreground mt-1">{pendingInstallments.length} unpaid installments</p>
           </div>
 
@@ -154,7 +154,7 @@ export default function ReportsPage() {
                 <TrendingUp className="w-4 h-4" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-emerald-600">₹{totalIncome.toLocaleString("en-IN")}</p>
+            <p className="text-2xl font-bold text-emerald-600">${totalIncome.toLocaleString("en-IN")}</p>
             <p className="text-xs text-muted-foreground mt-1">{incomeTransactions.length} income entries</p>
           </div>
 
@@ -165,7 +165,7 @@ export default function ReportsPage() {
                 <TrendingDown className="w-4 h-4" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-destructive">₹{totalExpense.toLocaleString("en-IN")}</p>
+            <p className="text-2xl font-bold text-destructive">${totalExpense.toLocaleString("en-IN")}</p>
             <p className="text-xs text-muted-foreground mt-1">{expenseTransactions.length} expense entries</p>
           </div>
         </div>
@@ -179,13 +179,13 @@ export default function ReportsPage() {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Net Balance (Income − Expense)</p>
               <p className={`text-2xl font-bold ${netBalance >= 0 ? "text-primary" : "text-destructive"}`}>
-                {netBalance >= 0 ? "+" : ""}₹{Math.abs(netBalance).toLocaleString("en-IN")}
+                {netBalance >= 0 ? "+" : ""}${Math.abs(netBalance).toLocaleString("en-IN")}
               </p>
             </div>
           </div>
           <div className="text-right text-xs text-muted-foreground">
-            <p>Income: ₹{totalIncome.toLocaleString("en-IN")}</p>
-            <p>Expense: ₹{totalExpense.toLocaleString("en-IN")}</p>
+            <p>Income: ${totalIncome.toLocaleString("en-IN")}</p>
+            <p>Expense: ${totalExpense.toLocaleString("en-IN")}</p>
           </div>
         </div>
       </div>
@@ -208,7 +208,7 @@ export default function ReportsPage() {
                       <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
                         <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
                       </div>
-                      <div className="w-28 text-right text-sm font-semibold text-emerald-600">₹{amt.toLocaleString("en-IN")}</div>
+                      <div className="w-28 text-right text-sm font-semibold text-emerald-600">${amt.toLocaleString("en-IN")}</div>
                     </div>
                   );
                 })}
@@ -232,7 +232,7 @@ export default function ReportsPage() {
                       <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
                         <div className="h-full bg-red-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
                       </div>
-                      <div className="w-28 text-right text-sm font-semibold text-destructive">₹{amt.toLocaleString("en-IN")}</div>
+                      <div className="w-28 text-right text-sm font-semibold text-destructive">${amt.toLocaleString("en-IN")}</div>
                     </div>
                   );
                 })}
@@ -256,7 +256,7 @@ export default function ReportsPage() {
                       <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
                         <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
                       </div>
-                      <div className="w-28 text-right text-sm font-semibold text-primary">₹{amount.toLocaleString("en-IN")}</div>
+                      <div className="w-28 text-right text-sm font-semibold text-primary">${amount.toLocaleString("en-IN")}</div>
                     </div>
                   );
                 })}

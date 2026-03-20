@@ -79,7 +79,7 @@ const TRANSACTION_FIELDS: FieldDef[] = [
     required: true,
     sample: "Fee Collection",
   },
-  { key: "amount", label: "Amount (₹)", required: true, sample: "5000" },
+  { key: "amount", label: "Amount ($)", required: true, sample: "5000" },
   { key: "description", label: "Description", sample: "Monthly fee payment" },
 ];
 
@@ -250,7 +250,7 @@ export default function TransactionsPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Amount (₹) *</Label>
+                  <Label>Amount ($) *</Label>
                   <Input
                     name="amount"
                     type="number"
@@ -294,7 +294,7 @@ export default function TransactionsPage() {
             </div>
           </div>
           <p className="text-2xl font-bold text-emerald-600">
-            ₹{totalIncome.toLocaleString("en-IN")}
+            ${totalIncome.toLocaleString("en-IN")}
           </p>
         </div>
         <div className="bg-card rounded-2xl p-5 border border-border/50 shadow-sm">
@@ -307,7 +307,7 @@ export default function TransactionsPage() {
             </div>
           </div>
           <p className="text-2xl font-bold text-destructive">
-            ₹{totalExpense.toLocaleString("en-IN")}
+            ${totalExpense.toLocaleString("en-IN")}
           </p>
         </div>
         <div
@@ -326,7 +326,7 @@ export default function TransactionsPage() {
           <p
             className={`text-2xl font-bold ${balance >= 0 ? "text-primary" : "text-destructive"}`}
           >
-            ₹{Math.abs(balance).toLocaleString("en-IN")}
+            ${Math.abs(balance).toLocaleString("en-IN")}
           </p>
         </div>
       </div>
@@ -391,7 +391,7 @@ export default function TransactionsPage() {
                       <span
                         className={`font-bold ${tx.type === "Income" ? "text-emerald-600" : "text-destructive"}`}
                       >
-                        {tx.type === "Income" ? "+" : "-"}₹
+                        {tx.type === "Income" ? "+" : "-"}$
                         {tx.amount.toLocaleString("en-IN")}
                       </span>
                     </TableCell>

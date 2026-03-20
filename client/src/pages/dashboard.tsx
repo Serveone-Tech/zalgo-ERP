@@ -68,7 +68,7 @@ export default function Dashboard() {
     },
     {
       title: "Fees Collected",
-      value: `₹${(stats?.totalRevenue ?? 0).toLocaleString("en-IN")}`,
+      value: `$${(stats?.totalRevenue ?? 0).toLocaleString("en-IN")}`,
       icon: CreditCard,
       color: "text-purple-600",
       bg: "bg-purple-50",
@@ -77,7 +77,7 @@ export default function Dashboard() {
     },
     {
       title: "Pending Fees",
-      value: `₹${(stats?.pendingFees ?? 0).toLocaleString("en-IN")}`,
+      value: `$${(stats?.pendingFees ?? 0).toLocaleString("en-IN")}`,
       icon: AlertCircle,
       color: "text-red-600",
       bg: "bg-red-50",
@@ -86,7 +86,7 @@ export default function Dashboard() {
     },
     {
       title: "Total Income",
-      value: `₹${(stats?.totalIncome ?? 0).toLocaleString("en-IN")}`,
+      value: `$${(stats?.totalIncome ?? 0).toLocaleString("en-IN")}`,
       icon: TrendingUp,
       color: "text-emerald-600",
       bg: "bg-emerald-50",
@@ -95,7 +95,7 @@ export default function Dashboard() {
     },
     {
       title: "Total Expense",
-      value: `₹${(stats?.totalExpense ?? 0).toLocaleString("en-IN")}`,
+      value: `$${(stats?.totalExpense ?? 0).toLocaleString("en-IN")}`,
       icon: TrendingDown,
       color: "text-red-600",
       bg: "bg-red-50",

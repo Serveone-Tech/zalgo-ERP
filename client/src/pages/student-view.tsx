@@ -273,7 +273,7 @@ export default function StudentViewPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Total Paid</span>
                 <span className="font-semibold text-emerald-700">
-                  ₹{totalPaid.toLocaleString("en-IN")}
+                  ${totalPaid.toLocaleString("en-IN")}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
@@ -360,7 +360,7 @@ export default function StudentViewPage() {
                       <div>
                         <p className="font-medium text-sm">{course.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {course.duration} · ₹
+                          {course.duration} · $
                           {course.fee.toLocaleString("en-IN")}
                         </p>
                       </div>
@@ -391,7 +391,7 @@ export default function StudentViewPage() {
                     >
                       <div>
                         <p className="font-medium text-sm">
-                          ₹{fee.amountPaid.toLocaleString("en-IN")}
+                          ${fee.amountPaid.toLocaleString("en-IN")}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {fee.paymentMode} · {fee.receiptNo}
@@ -448,8 +448,8 @@ export default function StudentViewPage() {
                             Plan
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Net Fee: ₹{plan.netFee.toLocaleString("en-IN")} ·
-                            Paid: ₹{plan.amountPaid.toLocaleString("en-IN")}
+                            Net Fee: ${plan.netFee.toLocaleString("en-IN")} ·
+                            Paid: ${plan.amountPaid.toLocaleString("en-IN")}
                           </p>
                         </div>
                         <span className="text-sm font-semibold text-primary">
@@ -483,7 +483,7 @@ export default function StudentViewPage() {
                               </div>
                               <div className="text-right">
                                 <p className="text-xs font-medium">
-                                  ₹{inst.amount.toLocaleString("en-IN")}
+                                  ${inst.amount.toLocaleString("en-IN")}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   Due:{" "}

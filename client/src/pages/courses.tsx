@@ -105,7 +105,7 @@ export default function CoursesPage() {
                 </div>
                 <div className="space-y-1 text-right">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Fee</p>
-                  <p className="text-sm font-bold text-primary">₹{course.fee.toLocaleString('en-IN')}</p>
+                  <p className="text-sm font-bold text-primary">${course.fee.toLocaleString('en-IN')}</p>
                 </div>
               </div>
 
@@ -372,7 +372,7 @@ function CourseForm({ onSuccess }: { onSuccess: () => void }) {
           <Input id="duration" name="duration" required className="rounded-xl" placeholder="e.g. 1 Year" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="fee">Total Fee (₹) *</Label>
+          <Label htmlFor="fee">Total Fee ($) *</Label>
           <Input id="fee" name="fee" type="number" required className="rounded-xl" min="0" />
         </div>
       </div>

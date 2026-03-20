@@ -296,7 +296,7 @@ export default function FeesPage() {
                           {student ? `${student.name}` : `ID: ${fee.studentId}`}
                         </TableCell>
                         <TableCell className="font-bold text-primary">
-                          ₹{fee.amountPaid.toLocaleString("en-IN")}
+                          ${fee.amountPaid.toLocaleString("en-IN")}
                         </TableCell>
                         <TableCell>
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
@@ -401,13 +401,13 @@ export default function FeesPage() {
                             Total Fee
                           </span>
                           <span className="font-medium">
-                            ₹{plan.netFee.toLocaleString("en-IN")}
+                            ${plan.netFee.toLocaleString("en-IN")}
                           </span>
                         </div>
                         <div className="flex justify-between text-xs">
                           <span className="text-muted-foreground">Paid</span>
                           <span className="font-medium text-emerald-600">
-                            ₹{(plan.amountPaid ?? 0).toLocaleString("en-IN")}
+                            ${(plan.amountPaid ?? 0).toLocaleString("en-IN")}
                           </span>
                         </div>
                         <div className="flex justify-between text-xs">
@@ -417,7 +417,7 @@ export default function FeesPage() {
                           <span
                             className={`font-medium ${remaining > 0 ? "text-red-600" : "text-emerald-600"}`}
                           >
-                            ₹{remaining.toLocaleString("en-IN")}
+                            ${remaining.toLocaleString("en-IN")}
                           </span>
                         </div>
                         {/* Progress bar */}
@@ -514,7 +514,7 @@ export default function FeesPage() {
                           #{inst.installmentNo}
                         </TableCell>
                         <TableCell className="font-semibold text-primary">
-                          ₹{inst.amount.toLocaleString("en-IN")}
+                          ${inst.amount.toLocaleString("en-IN")}
                         </TableCell>
                         <TableCell className="text-sm">
                           {inst.dueDate ? (
@@ -722,7 +722,7 @@ function RecordPaymentForm({
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label>Amount (₹) *</Label>
+          <Label>Amount ($) *</Label>
           <Input
             data-testid="input-fee-amount"
             type="number"
@@ -845,14 +845,14 @@ function CreateFeePlanForm({
               <SelectItem value="none">None (No course)</SelectItem>
               {courses.map((c) => (
                 <SelectItem key={c.id} value={String(c.id)}>
-                  {c.name} — ₹{c.fee.toLocaleString("en-IN")}
+                  {c.name} — ${c.fee.toLocaleString("en-IN")}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label>Total Fee (₹) *</Label>
+          <Label>Total Fee ($) *</Label>
           <Input
             data-testid="input-total-fee"
             type="number"
@@ -864,7 +864,7 @@ function CreateFeePlanForm({
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Discount (₹)</Label>
+          <Label>Discount ($)</Label>
           <Input
             data-testid="input-discount"
             type="number"
@@ -878,7 +878,7 @@ function CreateFeePlanForm({
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Net Payable Fee:</span>
             <span className="font-bold text-primary">
-              ₹{netFee.toLocaleString("en-IN")}
+              ${netFee.toLocaleString("en-IN")}
             </span>
           </div>
         </div>
@@ -926,7 +926,7 @@ function CreateFeePlanForm({
       </div>
       {paymentType === "installment" && totalFee && (
         <div className="p-3 bg-muted/40 rounded-lg text-xs text-muted-foreground">
-          Each installment: ~₹
+          Each installment: ~$
           {Math.round(netFee / Number(installmentCount)).toLocaleString(
             "en-IN",
           )}{" "}
@@ -997,7 +997,7 @@ function PayInstallmentForm({
         <div className="flex justify-between">
           <span className="text-muted-foreground">Due Amount:</span>
           <span className="font-bold text-primary">
-            ₹{installment.amount.toLocaleString("en-IN")}
+            ${installment.amount.toLocaleString("en-IN")}
           </span>
         </div>
         {installment.dueDate && (
@@ -1009,7 +1009,7 @@ function PayInstallmentForm({
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label>Amount Paid (₹) *</Label>
+          <Label>Amount Paid ($) *</Label>
           <Input
             data-testid="input-installment-amount"
             type="number"
