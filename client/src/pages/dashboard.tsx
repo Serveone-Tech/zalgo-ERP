@@ -4,19 +4,36 @@ import { useAuth } from "@/contexts/auth";
 import { useBranch } from "@/contexts/branch";
 import { useLocation } from "wouter";
 import {
-  Users, UserSquare2, GraduationCap, CreditCard, AlertCircle, ArrowRight, TrendingUp, TrendingDown, IndianRupee
+  Users,
+  UserSquare2,
+  GraduationCap,
+  CreditCard,
+  AlertCircle,
+  ArrowRight,
+  TrendingUp,
+  TrendingDown,
+  IndianRupee,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { DateFilter, DateFilterValue, filterToNavQuery, buildApiParams } from "@/components/date-filter";
+import {
+  DateFilter,
+  DateFilterValue,
+  filterToNavQuery,
+  buildApiParams,
+} from "@/components/date-filter";
 import { format } from "date-fns";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { selectedBranch } = useBranch();
   const [, navigate] = useLocation();
-  const [filter, setFilter] = useState<DateFilterValue>({ period: "", from: "", to: "" });
+  const [filter, setFilter] = useState<DateFilterValue>({
+    period: "",
+    from: "",
+    to: "",
+  });
 
   const params: Record<string, string> = {};
   if (filter.period && filter.period !== "all") {
@@ -110,7 +127,10 @@ export default function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Overview</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Welcome back, {user?.name}. {selectedBranch ? `Viewing: ${selectedBranch.name}` : "All Branches"}
+            Welcome back, {user?.name}.{" "}
+            {selectedBranch
+              ? `Viewing: ${selectedBranch.name}`
+              : "All Branches"}
           </p>
         </div>
         <DateFilter value={filter} onChange={setFilter} />
@@ -134,10 +154,16 @@ export default function Dashboard() {
               ) : (
                 <div className="flex justify-between items-start">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-muted-foreground">{stat.title}</p>
-                    <p className="text-2xl font-bold text-foreground mt-1 tracking-tight truncate">{stat.value}</p>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {stat.title}
+                    </p>
+                    <p className="text-2xl font-bold text-foreground mt-1 tracking-tight truncate">
+                      {stat.value}
+                    </p>
                   </div>
-                  <div className={`p-2.5 rounded-xl ${stat.bg} group-hover:scale-110 transition-transform shrink-0 ml-2`}>
+                  <div
+                    className={`p-2.5 rounded-xl ${stat.bg} group-hover:scale-110 transition-transform shrink-0 ml-2`}
+                  >
                     <stat.icon className={`w-5 h-5 ${stat.color}`} />
                   </div>
                 </div>
@@ -155,7 +181,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="border shadow-sm rounded-2xl overflow-hidden">
           <CardHeader className="border-b bg-muted/30 pb-4">
-            <CardTitle className="text-base font-semibold">Course Enrollment Summary</CardTitle>
+            <CardTitle className="text-base font-semibold">
+              Course Enrollment Summary
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y">
@@ -167,7 +195,9 @@ export default function Dashboard() {
                   </div>
                 ))
               ) : stats?.courseEnrollments?.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground text-sm">No enrollment data</div>
+                <div className="p-8 text-center text-muted-foreground text-sm">
+                  No enrollment data
+                </div>
               ) : (
                 stats?.courseEnrollments?.map((course, idx) => (
                   <div
@@ -175,8 +205,13 @@ export default function Dashboard() {
                     className="p-4 flex items-center justify-between hover:bg-muted/20 transition-colors cursor-pointer"
                     onClick={() => navigate("/courses")}
                   >
-                    <span className="font-medium text-sm text-foreground">{course.courseName}</span>
-                    <Badge variant="secondary" className="bg-primary/10 text-primary">
+                    <span className="font-medium text-sm text-foreground">
+                      {course.courseName}
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="bg-primary/10 text-primary"
+                    >
                       {course.studentCount} Students
                     </Badge>
                   </div>
@@ -188,7 +223,9 @@ export default function Dashboard() {
 
         <Card className="border shadow-sm rounded-2xl overflow-hidden">
           <CardHeader className="border-b bg-muted/30 pb-4">
-            <CardTitle className="text-base font-semibold">Recent Enquiries</CardTitle>
+            <CardTitle className="text-base font-semibold">
+              Recent Enquiries
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y">
@@ -199,7 +236,9 @@ export default function Dashboard() {
                   </div>
                 ))
               ) : stats?.recentLeads?.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground text-sm">No recent enquiries</div>
+                <div className="p-8 text-center text-muted-foreground text-sm">
+                  No recent enquiries
+                </div>
               ) : (
                 stats?.recentLeads?.map((lead: any) => (
                   <div
@@ -208,14 +247,18 @@ export default function Dashboard() {
                     onClick={() => navigate(`/leads/${lead.id}`)}
                   >
                     <div>
-                      <p className="font-medium text-sm text-foreground">{lead.studentName}</p>
+                      <p className="font-medium text-sm text-foreground">
+                        {lead.studentName}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {lead.courseInterested} &bull; {lead.phone}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge
-                        variant={lead.status === "New" ? "default" : "secondary"}
+                        variant={
+                          lead.status === "New" ? "default" : "secondary"
+                        }
                         className="text-xs"
                       >
                         {lead.status}

@@ -125,7 +125,7 @@ export default function IDCardsPage() {
               <div className="absolute -right-4 -top-4 w-24 h-24 rounded-full bg-white/10" />
               <div className="absolute -right-2 -top-8 w-20 h-20 rounded-full bg-white/5" />
               <p className="text-xs font-bold uppercase tracking-widest text-white/80 relative">
-               ZALGO EDUTECH
+                ZALGO EDUTECH
               </p>
               <p className="text-xs text-white/60 relative">
                 {tab === "students" ? "Student" : "Teacher"} ID Card

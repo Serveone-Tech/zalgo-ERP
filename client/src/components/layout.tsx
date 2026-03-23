@@ -89,13 +89,13 @@ const navigation = [
         icon: BookOpen,
         module: "courses",
       },
-      {
-        name: "Assignments",
-        href: "/assignments",
-        icon: ClipboardList,
-        module: "assignments",
-      },
-      { name: "Exams", href: "/exams", icon: FileText, module: "exams" },
+      // {
+      //   name: "Assignments",
+      //   href: "/assignments",
+      //   icon: ClipboardList,
+      //   module: "assignments",
+      // },
+      // { name: "Exams", href: "/exams", icon: FileText, module: "exams" },
     ],
   },
   {

@@ -443,7 +443,7 @@ function EditCourseForm({
   isPending: boolean;
 }) {
   const [status, setStatus] = useState(course.status);
-    const [branchId, setBranchId] = useState(
+  const [branchId, setBranchId] = useState(
     course.branchId ? String(course.branchId) : "",
   );
 
@@ -501,7 +501,7 @@ function EditCourseForm({
             className="rounded-xl"
           />
         </div>
-         <div className="col-span-2">
+        <div className="col-span-2">
           <BranchSelect value={branchId} onChange={setBranchId} />
         </div>
         <div className="col-span-2 space-y-1.5">

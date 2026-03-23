@@ -95,8 +95,8 @@ function AuthenticatedRouter() {
           <Route path="/courses">{() => <ProtectedRoute module="courses" component={CoursesPage} />}</Route>
           <Route path="/courses/:id">{() => <ProtectedRoute module="courses" component={CourseViewPage} />}</Route>
           <Route path="/fees">{() => <ProtectedRoute module="fees" component={FeesPage} />}</Route>
-          <Route path="/assignments">{() => <ProtectedRoute module="assignments" component={AssignmentsPage} />}</Route>
-          <Route path="/exams">{() => <ProtectedRoute module="exams" component={ExamsPage} />}</Route>
+          {/* <Route path="/assignments">{() => <ProtectedRoute module="assignments" component={AssignmentsPage} />}</Route> */}
+          {/* <Route path="/exams">{() => <ProtectedRoute module="exams" component={ExamsPage} />}</Route> */}
           <Route path="/inventory">{() => <ProtectedRoute module="inventory" component={InventoryPage} />}</Route>
           <Route path="/transactions">{() => <ProtectedRoute module="transactions" component={TransactionsPage} />}</Route>
           <Route path="/communications">{() => <ProtectedRoute module="communications" component={CommunicationsPage} />}</Route>
