@@ -1,4 +1,11 @@
-import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  serial,
+  integer,
+  timestamp,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -21,7 +28,7 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  role: text("role").notNull().default("staff"), // admin, staff, accountant, teacher
+  role: text("role").notNull().default("staff"),
   permissions: text("permissions").array().default([]),
   branchId: integer("branch_id").references(() => branches.id),
   isActive: boolean("is_active").default(true),
@@ -37,7 +44,7 @@ export const leads = pgTable("leads", {
   parentPhone: text("parent_phone"),
   address: text("address"),
   courseInterested: text("course_interested").notNull(),
-  status: text("status").notNull().default("New"), // New, Follow-up, Converted, Dropped
+  status: text("status").notNull().default("New"),
   branchId: integer("branch_id").references(() => branches.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -54,6 +61,8 @@ export const students = pgTable("students", {
   address: text("address"),
   profilePicture: text("profile_picture"),
   status: text("status").notNull().default("Active"),
+  // ── NEW: course interested field ──────────────────────────────────────────
+  courseInterested: text("course_interested"),
   branchId: integer("branch_id").references(() => branches.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -85,21 +94,35 @@ export const courses = pgTable("courses", {
 // ─── Enrollments ──────────────────────────────────────────────────────────────
 export const enrollments = pgTable("enrollments", {
   id: serial("id").primaryKey(),
-  studentId: integer("student_id").references(() => students.id).notNull(),
-  courseId: integer("course_id").references(() => courses.id).notNull(),
+  studentId: integer("student_id")
+    .references(() => students.id)
+    .notNull(),
+  courseId: integer("course_id")
+    .references(() => courses.id)
+    .notNull(),
   enrolledAt: timestamp("enrolled_at").defaultNow(),
 });
 
 export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
-  student: one(students, { fields: [enrollments.studentId], references: [students.id] }),
-  course: one(courses, { fields: [enrollments.courseId], references: [courses.id] }),
+  student: one(students, {
+    fields: [enrollments.studentId],
+    references: [students.id],
+  }),
+  course: one(courses, {
+    fields: [enrollments.courseId],
+    references: [courses.id],
+  }),
 }));
 
 // ─── Fees (Payments) ──────────────────────────────────────────────────────────
 export const fees = pgTable("fees", {
   id: serial("id").primaryKey(),
-  studentId: integer("student_id").references(() => students.id).notNull(),
-  courseId: integer("course_id").references(() => courses.id).notNull(),
+  studentId: integer("student_id")
+    .references(() => students.id)
+    .notNull(),
+  courseId: integer("course_id")
+    .references(() => courses.id)
+    .notNull(),
   amountPaid: integer("amount_paid").notNull(),
   paymentDate: timestamp("payment_date").defaultNow(),
   paymentMode: text("payment_mode").notNull(),
@@ -109,20 +132,25 @@ export const fees = pgTable("fees", {
 });
 
 export const feesRelations = relations(fees, ({ one }) => ({
-  student: one(students, { fields: [fees.studentId], references: [students.id] }),
+  student: one(students, {
+    fields: [fees.studentId],
+    references: [students.id],
+  }),
   course: one(courses, { fields: [fees.courseId], references: [courses.id] }),
 }));
 
-// ─── Fee Plans (Installment Structure per Student) ────────────────────────────
+// ─── Fee Plans ────────────────────────────────────────────────────────────────
 export const feePlans = pgTable("fee_plans", {
   id: serial("id").primaryKey(),
-  studentId: integer("student_id").references(() => students.id).notNull(),
+  studentId: integer("student_id")
+    .references(() => students.id)
+    .notNull(),
   courseId: integer("course_id").references(() => courses.id),
   totalFee: integer("total_fee").notNull(),
   discount: integer("discount").default(0),
   netFee: integer("net_fee").notNull(),
   amountPaid: integer("amount_paid").default(0),
-  paymentType: text("payment_type").notNull().default("onetime"), // onetime, installment
+  paymentType: text("payment_type").notNull().default("onetime"),
   installmentCount: integer("installment_count").default(1),
   installmentAmount: integer("installment_amount"),
   startDate: timestamp("start_date"),
@@ -134,14 +162,18 @@ export const feePlans = pgTable("fee_plans", {
 // ─── Fee Installments ─────────────────────────────────────────────────────────
 export const feeInstallments = pgTable("fee_installments", {
   id: serial("id").primaryKey(),
-  feePlanId: integer("fee_plan_id").references(() => feePlans.id).notNull(),
-  studentId: integer("student_id").references(() => students.id).notNull(),
+  feePlanId: integer("fee_plan_id")
+    .references(() => feePlans.id)
+    .notNull(),
+  studentId: integer("student_id")
+    .references(() => students.id)
+    .notNull(),
   installmentNo: integer("installment_no").notNull(),
   amount: integer("amount").notNull(),
   dueDate: timestamp("due_date"),
   paidDate: timestamp("paid_date"),
   paidAmount: integer("paid_amount").default(0),
-  status: text("status").notNull().default("pending"), // pending, paid, overdue, partial
+  status: text("status").notNull().default("pending"),
   receiptNo: text("receipt_no"),
   paymentMode: text("payment_mode"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -150,7 +182,9 @@ export const feeInstallments = pgTable("fee_installments", {
 // ─── Assignments ──────────────────────────────────────────────────────────────
 export const assignments = pgTable("assignments", {
   id: serial("id").primaryKey(),
-  courseId: integer("course_id").references(() => courses.id).notNull(),
+  courseId: integer("course_id")
+    .references(() => courses.id)
+    .notNull(),
   title: text("title").notNull(),
   description: text("description"),
   dueDate: timestamp("due_date"),
@@ -160,7 +194,9 @@ export const assignments = pgTable("assignments", {
 // ─── Exams ────────────────────────────────────────────────────────────────────
 export const exams = pgTable("exams", {
   id: serial("id").primaryKey(),
-  courseId: integer("course_id").references(() => courses.id).notNull(),
+  courseId: integer("course_id")
+    .references(() => courses.id)
+    .notNull(),
   name: text("name").notNull(),
   date: timestamp("date").notNull(),
   maxMarks: integer("max_marks").notNull(),
@@ -176,7 +212,7 @@ export const inventory = pgTable("inventory", {
   lastUpdated: timestamp("last_updated").defaultNow(),
 });
 
-// ─── Income/Expense ───────────────────────────────────────────────────────────
+// ─── Transactions ─────────────────────────────────────────────────────────────
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
   type: text("type").notNull(),
@@ -203,32 +239,73 @@ export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   message: text("message").notNull(),
-  type: text("type").notNull().default("info"), // info, warning, danger, success
+  type: text("type").notNull().default("info"),
   isRead: boolean("is_read").default(false),
   relatedId: integer("related_id"),
-  relatedType: text("related_type"), // fee_installment, student, lead
+  relatedType: text("related_type"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // ─── Insert Schemas ───────────────────────────────────────────────────────────
-export const insertBranchSchema = createInsertSchema(branches).omit({ id: true, createdAt: true });
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, passwordHash: true }).extend({
-  password: z.string().min(6),
+export const insertBranchSchema = createInsertSchema(branches).omit({
+  id: true,
+  createdAt: true,
 });
-export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true });
-export const insertStudentSchema = createInsertSchema(students).omit({ id: true, createdAt: true });
-export const insertTeacherSchema = createInsertSchema(teachers).omit({ id: true, createdAt: true });
-export const insertCourseSchema = createInsertSchema(courses).omit({ id: true });
-export const insertEnrollmentSchema = createInsertSchema(enrollments).omit({ id: true, enrolledAt: true });
-export const insertFeeSchema = createInsertSchema(fees).omit({ id: true, paymentDate: true });
-export const insertFeePlanSchema = createInsertSchema(feePlans).omit({ id: true, createdAt: true });
-export const insertFeeInstallmentSchema = createInsertSchema(feeInstallments).omit({ id: true, createdAt: true });
-export const insertAssignmentSchema = createInsertSchema(assignments).omit({ id: true, createdAt: true });
+export const insertUserSchema = createInsertSchema(users)
+  .omit({ id: true, createdAt: true, passwordHash: true })
+  .extend({
+    password: z.string().min(6),
+  });
+export const insertLeadSchema = createInsertSchema(leads).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertStudentSchema = createInsertSchema(students).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertTeacherSchema = createInsertSchema(teachers).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertCourseSchema = createInsertSchema(courses).omit({
+  id: true,
+});
+export const insertEnrollmentSchema = createInsertSchema(enrollments).omit({
+  id: true,
+  enrolledAt: true,
+});
+export const insertFeeSchema = createInsertSchema(fees).omit({
+  id: true,
+  paymentDate: true,
+});
+export const insertFeePlanSchema = createInsertSchema(feePlans).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertFeeInstallmentSchema = createInsertSchema(
+  feeInstallments,
+).omit({ id: true, createdAt: true });
+export const insertAssignmentSchema = createInsertSchema(assignments).omit({
+  id: true,
+  createdAt: true,
+});
 export const insertExamSchema = createInsertSchema(exams).omit({ id: true });
-export const insertInventorySchema = createInsertSchema(inventory).omit({ id: true, lastUpdated: true });
-export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, date: true });
-export const insertCommunicationSchema = createInsertSchema(communications).omit({ id: true, sentAt: true });
-export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+export const insertInventorySchema = createInsertSchema(inventory).omit({
+  id: true,
+  lastUpdated: true,
+});
+export const insertTransactionSchema = createInsertSchema(transactions).omit({
+  id: true,
+  date: true,
+});
+export const insertCommunicationSchema = createInsertSchema(
+  communications,
+).omit({ id: true, sentAt: true });
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type Branch = typeof branches.$inferSelect;

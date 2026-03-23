@@ -8,8 +8,6 @@ import {
   Edit,
   User,
   Phone,
-  Mail,
-  MapPin,
   BookOpen,
   CreditCard,
   Calendar,
@@ -40,6 +38,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth";
 import { useBranches } from "@/hooks/use-branches";
+import { useCourses } from "@/hooks/use-courses";
 import type {
   Student,
   Course,
@@ -74,6 +73,7 @@ export default function StudentViewPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const canEdit = user?.role === "admin" || user?.role === "staff";
   const { data: branches = [] } = useBranches();
+  const { data: courses = [] } = useCourses();
   const getBranchName = (id: number | null | undefined) =>
     branches.find((b) => b.id === id)?.name ?? "—";
 
@@ -96,15 +96,6 @@ export default function StudentViewPage() {
     queryFn: async () => {
       const res = await fetch("/api/enrollments", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch enrollments");
-      return res.json();
-    },
-  });
-
-  const { data: courses = [] } = useQuery<Course[]>({
-    queryKey: ["/api/courses"],
-    queryFn: async () => {
-      const res = await fetch("/api/courses", { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch courses");
       return res.json();
     },
   });
@@ -265,15 +256,14 @@ export default function StudentViewPage() {
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-primary" />
-                Fee Summary
+                <CreditCard className="w-4 h-4 text-primary" /> Fee Summary
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Total Paid</span>
                 <span className="font-semibold text-emerald-700">
-                  ${totalPaid.toLocaleString("en-IN")}
+                  ₹{totalPaid.toLocaleString("en-IN")}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
@@ -303,8 +293,7 @@ export default function StudentViewPage() {
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <User className="w-4 h-4 text-primary" />
-                Personal Information
+                <User className="w-4 h-4 text-primary" /> Personal Information
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -328,8 +317,8 @@ export default function StudentViewPage() {
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Phone className="w-4 h-4 text-primary" />
-                Parent / Guardian Details
+                <Phone className="w-4 h-4 text-primary" /> Parent / Guardian
+                Details
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -338,20 +327,24 @@ export default function StudentViewPage() {
             </CardContent>
           </Card>
 
+          {/* ── Course Interested card — courseInterested directly dikhata hai ── */}
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-primary" />
-                Enrolled Courses
+                <BookOpen className="w-4 h-4 text-primary" /> Course Details
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {enrolledCourses.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">
-                  Not enrolled in any course
-                </p>
-              ) : (
-                <div className="space-y-2">
+              <InfoRow
+                label="Course Interested"
+                value={student.courseInterested}
+              />
+              {/* Formal enrollments bhi dikhao agar hain */}
+              {enrolledCourses.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Formally Enrolled
+                  </p>
                   {enrolledCourses.map((course) => (
                     <div
                       key={course.id}
@@ -360,7 +353,7 @@ export default function StudentViewPage() {
                       <div>
                         <p className="font-medium text-sm">{course.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {course.duration} · $
+                          {course.duration} · ₹
                           {course.fee.toLocaleString("en-IN")}
                         </p>
                       </div>
@@ -378,8 +371,7 @@ export default function StudentViewPage() {
             <Card className="rounded-2xl border-border/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-primary" />
-                  Fee Payments
+                  <CreditCard className="w-4 h-4 text-primary" /> Fee Payments
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -391,7 +383,7 @@ export default function StudentViewPage() {
                     >
                       <div>
                         <p className="font-medium text-sm">
-                          ${fee.amountPaid.toLocaleString("en-IN")}
+                          ₹{fee.amountPaid.toLocaleString("en-IN")}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {fee.paymentMode} · {fee.receiptNo}
@@ -421,8 +413,8 @@ export default function StudentViewPage() {
             <Card className="rounded-2xl border-border/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  Fee Plans & Installments
+                  <Calendar className="w-4 h-4 text-primary" /> Fee Plans &
+                  Installments
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -448,8 +440,8 @@ export default function StudentViewPage() {
                             Plan
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Net Fee: ${plan.netFee.toLocaleString("en-IN")} ·
-                            Paid: ${plan.amountPaid.toLocaleString("en-IN")}
+                            Net Fee: ₹{plan.netFee.toLocaleString("en-IN")} ·
+                            Paid: ₹{plan.amountPaid.toLocaleString("en-IN")}
                           </p>
                         </div>
                         <span className="text-sm font-semibold text-primary">
@@ -483,7 +475,7 @@ export default function StudentViewPage() {
                               </div>
                               <div className="text-right">
                                 <p className="text-xs font-medium">
-                                  ${inst.amount.toLocaleString("en-IN")}
+                                  ₹{inst.amount.toLocaleString("en-IN")}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   Due:{" "}
@@ -522,6 +514,7 @@ export default function StudentViewPage() {
             </DialogHeader>
             <EditStudentForm
               student={student}
+              courses={courses}
               onSubmit={(data) => updateMutation.mutate(data)}
               isPending={updateMutation.isPending}
             />
@@ -534,16 +527,22 @@ export default function StudentViewPage() {
 
 function EditStudentForm({
   student,
+  courses,
   onSubmit,
   isPending,
 }: {
   student: Student;
+  courses: Course[];
   onSubmit: (data: Partial<Student>) => void;
   isPending: boolean;
 }) {
   const [status, setStatus] = useState(student.status);
-    const [branchId, setBranchId] = useState(
+  const [branchId, setBranchId] = useState(
     student.branchId ? String(student.branchId) : "",
+  );
+  // Pre-fill existing courseInterested value
+  const [courseInterested, setCourseInterested] = useState(
+    student.courseInterested ?? "",
   );
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -559,8 +558,11 @@ function EditStudentForm({
       enrollmentNo: fd.get("enrollmentNo") as string,
       status,
       branchId: parseBranchId(branchId),
+      courseInterested: courseInterested || null, // ✅ payload mein jayega
     });
   };
+
+  const activeCourses = courses.filter((c) => c.status === "Active");
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
@@ -639,7 +641,35 @@ function EditStudentForm({
             className="rounded-xl"
           />
         </div>
-        <div className="sm:col-span-2">
+
+        {/* ── Course Select — value state se payload mein jaata hai ── */}
+        <div className="col-span-2 space-y-1.5">
+          <Label>Course Interested</Label>
+          <Select value={courseInterested} onValueChange={setCourseInterested}>
+            <SelectTrigger
+              className="rounded-xl"
+              data-testid="select-edit-course"
+            >
+              <SelectValue placeholder="Select a course..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_none">— None —</SelectItem>
+              {activeCourses.length > 0 ? (
+                activeCourses.map((c) => (
+                  <SelectItem key={c.id} value={c.name}>
+                    {c.name}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="_empty" disabled>
+                  No active courses available
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="col-span-2">
           <BranchSelect value={branchId} onChange={setBranchId} />
         </div>
       </div>

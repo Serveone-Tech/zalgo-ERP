@@ -134,15 +134,19 @@ export const FeeInstallmentsController = {
         req.body,
       );
 
+      const finalReceiptNo = receiptNo ?? `RCP-${Date.now()}`;
+      const finalPaidDate = paidDate ?? new Date();
+
+      // ── 1. Installment update karo ─────────────────────────────────────────
       const inst = await storage.updateFeeInstallment(Number(req.params.id), {
         paidAmount,
         paymentMode,
-        receiptNo: receiptNo ?? `RCP-${Date.now()}`,
-        paidDate: paidDate ?? new Date(),
+        receiptNo: finalReceiptNo,
+        paidDate: finalPaidDate,
         status: "paid",
       });
 
-      // Update fee plan amountPaid
+      // ── 2. Fee plan ka amountPaid update karo ──────────────────────────────
       const plan = await storage.getFeePlan(inst.feePlanId);
       if (plan) {
         const allInst = await storage.getFeeInstallments(inst.feePlanId);
@@ -150,9 +154,53 @@ export const FeeInstallmentsController = {
         await storage.updateFeePlan(inst.feePlanId, { amountPaid: totalPaid });
       }
 
-      // Create notification for whatsapp reminder mock
+      // ── 3. Fees table mein entry banao (Payments tab mein dikhne ke liye) ──
+      try {
+        const student = await storage.getStudent(inst.studentId);
+
+        // courseId fee plan se lo, agar nahi hai toh 0 (default fallback)
+        const courseId = plan?.courseId ?? null;
+
+        if (courseId) {
+          await storage.createFee({
+            studentId: inst.studentId,
+            courseId,
+            amountPaid: paidAmount,
+            paymentMode,
+            receiptNo: finalReceiptNo,
+            status: "Paid",
+            branchId: student?.branchId ?? null,
+          });
+        }
+      } catch (feeErr) {
+        console.error(
+          "[FeeInstallmentsController] Fee record creation failed:",
+          feeErr,
+        );
+      }
+
+      // ── 4. Transaction bhi create karo (Income/Expense tab mein dikhne ke liye) ──
+      try {
+        const student = await storage.getStudent(inst.studentId);
+        const studentName = student?.name ?? `Student #${inst.studentId}`;
+
+        await storage.createTransaction({
+          type: "Income",
+          category: "Fee Collection",
+          amount: paidAmount,
+          description: `Installment #${inst.installmentNo} from ${studentName} | Receipt: ${finalReceiptNo}`,
+          branchId: student?.branchId ?? null,
+        });
+      } catch (txErr) {
+        console.error(
+          "[FeeInstallmentsController] Transaction creation failed:",
+          txErr,
+        );
+      }
+      // ──────────────────────────────────────────────────────────────────────
+
       console.log(
-        `[WhatsApp Mock] Fee payment recorded for student ${inst.studentId}: $${paidAmount}`,
+        `[WhatsApp Mock] Fee payment recorded for student ${inst.studentId}: ₹${paidAmount}`,
       );
 
       res.json(inst);

@@ -7,7 +7,11 @@ import { z } from "zod";
 export const LeadsController = {
   async list(req: Request, res: Response) {
     const { period, from, to, branchId } = req.query as Record<string, string>;
-    const { from: fromDate, to: toDate } = parsePeriodToDateRange(period, from, to);
+    const { from: fromDate, to: toDate } = parsePeriodToDateRange(
+      period,
+      from,
+      to,
+    );
     const leads = await storage.getLeads({
       branchId: branchId ? Number(branchId) : undefined,
       from: fromDate,
@@ -29,7 +33,12 @@ export const LeadsController = {
       res.status(201).json(lead);
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+        return res
+          .status(400)
+          .json({
+            message: err.errors[0].message,
+            field: err.errors[0].path.join("."),
+          });
       throw err;
     }
   },
@@ -37,11 +46,47 @@ export const LeadsController = {
   async update(req: Request, res: Response) {
     try {
       const input = api.leads.update.input.parse(req.body);
-      const lead = await storage.updateLead(Number(req.params.id), input);
+      const leadId = Number(req.params.id);
+
+      // ── Auto-create student when lead is marked Converted ──────────────────
+      if (input.status === "Converted") {
+        const existingLead = await storage.getLead(leadId);
+
+        if (existingLead && existingLead.status !== "Converted") {
+          const existingStudents = await storage.getStudents({});
+          const alreadyExists = existingStudents.some(
+            (s) => s.phone === existingLead.phone,
+          );
+
+          if (!alreadyExists) {
+            await storage.createStudent({
+              enrollmentNo: `BSC${Date.now()}-${Math.floor(Math.random() * 999)}`,
+              name: existingLead.studentName,
+              email: null,
+              phone: existingLead.phone,
+              parentName: existingLead.parentName ?? "",
+              parentPhone: existingLead.parentPhone ?? "",
+              address: existingLead.address ?? null,
+              profilePicture: null,
+              status: "Active",
+              branchId: existingLead.branchId ?? null,
+              courseInterested: existingLead.courseInterested ?? null, // ✅ lead ka course bhi copy hoga
+            });
+          }
+        }
+      }
+      // ──────────────────────────────────────────────────────────────────────
+
+      const lead = await storage.updateLead(leadId, input);
       res.json(lead);
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+        return res
+          .status(400)
+          .json({
+            message: err.errors[0].message,
+            field: err.errors[0].path.join("."),
+          });
       throw err;
     }
   },

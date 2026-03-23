@@ -174,12 +174,11 @@ export interface IStorage {
   // Transactions
   getTransactions(branchId?: number): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  deleteTransaction(id: number): Promise<void>;
 
   // Communications
   getCommunications(): Promise<Communication[]>;
   createCommunication(comm: InsertCommunication): Promise<Communication>;
-  deleteTransaction(id: number): Promise<void>;
-
 
   // Notifications
   getNotifications(): Promise<Notification[]>;
@@ -189,6 +188,62 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // ── Helper: courseInterested name se course dhundh ke enrollment banao ────────
+  private async autoEnroll(
+    studentId: number,
+    courseInterested: string | null | undefined,
+  ): Promise<void> {
+    if (!courseInterested) return;
+
+    // Course name se match karo (case-insensitive)
+    const allCourses = await db.select().from(courses);
+    const matched = allCourses.find(
+      (c) => c.name.toLowerCase() === courseInterested.toLowerCase(),
+    );
+    if (!matched) return; // Course nahi mila toh skip
+
+    // Duplicate enrollment check
+    const existing = await this.getEnrollmentByStudentAndCourse(
+      studentId,
+      matched.id,
+    );
+    if (existing) return; // Already enrolled
+
+    await db.insert(enrollments).values({ studentId, courseId: matched.id });
+  }
+
+  // ── Helper: purani enrollment hatao aur nayi banao (edit case) ───────────────
+  private async reEnroll(
+    studentId: number,
+    newCourse: string | null | undefined,
+  ): Promise<void> {
+    // Student ki existing enrollments fetch karo
+    const existing = await db
+      .select()
+      .from(enrollments)
+      .where(eq(enrollments.studentId, studentId));
+
+    // Naya course resolve karo
+    const allCourses = await db.select().from(courses);
+    const matched = newCourse
+      ? allCourses.find((c) => c.name.toLowerCase() === newCourse.toLowerCase())
+      : null;
+
+    // Agar purani enrollment usi course ki hai toh kuch mat karo
+    if (matched && existing.some((e) => e.courseId === matched.id)) return;
+
+    // Purani courseInterested-based enrollment hatao
+    // (sirf woh jo pehle autoEnroll se bani thi — sabhi existing hatao aur naya add karo)
+    for (const e of existing) {
+      await db.delete(enrollments).where(eq(enrollments.id, e.id));
+    }
+
+    // Naya course enroll karo
+    if (matched) {
+      await db.insert(enrollments).values({ studentId, courseId: matched.id });
+    }
+  }
+
   // Branches
   async getBranches(): Promise<Branch[]> {
     return await db.select().from(branches).orderBy(branches.name);
@@ -306,10 +361,18 @@ export class DatabaseStorage implements IStorage {
     const [s] = await db.select().from(students).where(eq(students.id, id));
     return s;
   }
+
+  // ── createStudent: student banao + auto-enroll in course ─────────────────────
   async createStudent(student: InsertStudent): Promise<Student> {
     const [s] = await db.insert(students).values(student).returning();
+
+    // Agar courseInterested hai toh enrollments table mein bhi daalo
+    await this.autoEnroll(s.id, s.courseInterested);
+
     return s;
   }
+
+  // ── updateStudent: course badla toh enrollment bhi update karo ───────────────
   async updateStudent(
     id: number,
     updates: Partial<InsertStudent>,
@@ -319,8 +382,15 @@ export class DatabaseStorage implements IStorage {
       .set(updates)
       .where(eq(students.id, id))
       .returning();
+
+    // Agar courseInterested update hua hai toh enrollment bhi sync karo
+    if ("courseInterested" in updates) {
+      await this.reEnroll(s.id, s.courseInterested);
+    }
+
     return s;
   }
+
   async deleteStudent(id: number): Promise<void> {
     await db.delete(students).where(eq(students.id, id));
   }
@@ -435,24 +505,18 @@ export class DatabaseStorage implements IStorage {
     to?: Date;
   }): Promise<Fee[]> {
     const { branchId, from, to } = opts || {};
-
-    // Join with students to filter by student's branchId as fallback
     const result = await db
       .select({ fee: fees })
       .from(fees)
       .leftJoin(students, eq(fees.studentId, students.id))
       .where(
         and(
-          branchId
-            ? // fee ka branchId check karo, agar null hai toh student ka branchId use karo
-              eq(students.branchId, branchId)
-            : undefined,
+          branchId ? eq(students.branchId, branchId) : undefined,
           from ? gte(fees.paymentDate, from) : undefined,
           to ? lte(fees.paymentDate, to) : undefined,
         ),
       )
       .orderBy(desc(fees.paymentDate));
-
     return result.map((r) => r.fee);
   }
   async createFee(fee: InsertFee): Promise<Fee> {
@@ -476,7 +540,6 @@ export class DatabaseStorage implements IStorage {
         ),
       )
       .orderBy(desc(feePlans.createdAt));
-
     return result.map((r) => r.plan);
   }
   async getFeePlan(id: number): Promise<FeePlan | undefined> {
@@ -515,7 +578,6 @@ export class DatabaseStorage implements IStorage {
         ),
       )
       .orderBy(feeInstallments.dueDate);
-
     return result.map((r) => r.inst);
   }
   async getOverdueInstallments(): Promise<FeeInstallment[]> {
@@ -548,7 +610,7 @@ export class DatabaseStorage implements IStorage {
     return i;
   }
 
-  // Dashboard Stats with date/branch filter
+  // Dashboard Stats
   async getDashboardStats(opts?: {
     from?: Date;
     to?: Date;
@@ -584,7 +646,6 @@ export class DatabaseStorage implements IStorage {
       .where(feeConditions.length ? and(...feeConditions) : undefined);
     const totalRevenue = allFees.reduce((sum, fee) => sum + fee.amountPaid, 0);
 
-    // Pending fees (unpaid installments)
     const allInstallments = await db
       .select()
       .from(feeInstallments)
@@ -670,11 +731,9 @@ export class DatabaseStorage implements IStorage {
     const [t] = await db.insert(transactions).values(transaction).returning();
     return t;
   }
-
   async deleteTransaction(id: number): Promise<void> {
-  await db.delete(transactions).where(eq(transactions.id, id));
-}
-
+    await db.delete(transactions).where(eq(transactions.id, id));
+  }
 
   // Communications
   async getCommunications(): Promise<Communication[]> {

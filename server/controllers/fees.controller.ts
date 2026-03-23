@@ -7,7 +7,11 @@ import { z } from "zod";
 export const FeesController = {
   async list(req: Request, res: Response) {
     const { period, from, to, branchId } = req.query as Record<string, string>;
-    const { from: fromDate, to: toDate } = parsePeriodToDateRange(period, from, to);
+    const { from: fromDate, to: toDate } = parsePeriodToDateRange(
+      period,
+      from,
+      to,
+    );
     const fees = await storage.getFees({
       branchId: branchId ? Number(branchId) : undefined,
       from: fromDate,
@@ -24,11 +28,39 @@ export const FeesController = {
         amountPaid: z.coerce.number(),
       });
       const input = bodySchema.parse(req.body);
+
+      // ── Fee record create karo ─────────────────────────────────────────────
       const fee = await storage.createFee(input);
+
+      // ── Automatically Income transaction bhi create karo ──────────────────
+      try {
+        // Student ka naam fetch karo description ke liye
+        const student = await storage.getStudent(input.studentId);
+        const studentName = student?.name ?? `Student #${input.studentId}`;
+
+        await storage.createTransaction({
+          type: "Income",
+          category: "Fee Collection",
+          amount: input.amountPaid,
+          description: `Fee collected from ${studentName} | Receipt: ${input.receiptNo}`,
+          branchId: input.branchId ?? student?.branchId ?? null,
+        });
+      } catch (txErr) {
+        // Transaction fail hone par fee ko rollback mat karo, sirf log karo
+        console.error(
+          "[FeesController] Auto-transaction creation failed:",
+          txErr,
+        );
+      }
+      // ──────────────────────────────────────────────────────────────────────
+
       res.status(201).json(fee);
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join("."),
+        });
       throw err;
     }
   },

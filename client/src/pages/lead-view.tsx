@@ -34,7 +34,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth";
 import { useBranches } from "@/hooks/use-branches";
-import type { Lead } from "@shared/schema";
+import { useCourses } from "@/hooks/use-courses";
+import type { Lead, Course } from "@shared/schema";
 import { BranchSelect, parseBranchId } from "@/components/branch-select";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -68,6 +69,7 @@ export default function LeadViewPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const canEdit = user?.role === "admin" || user?.role === "staff";
   const { data: branches = [] } = useBranches();
+  const { data: courses = [] } = useCourses();
   const getBranchName = (id: number | null | undefined) =>
     branches.find((b) => b.id === id)?.name ?? "—";
 
@@ -291,6 +293,7 @@ export default function LeadViewPage() {
             </DialogHeader>
             <EditLeadForm
               lead={lead}
+              courses={courses}
               onSubmit={(data) => updateMutation.mutate(data)}
               isPending={updateMutation.isPending}
             />
@@ -303,16 +306,22 @@ export default function LeadViewPage() {
 
 function EditLeadForm({
   lead,
+  courses,
   onSubmit,
   isPending,
 }: {
   lead: Lead;
+  courses: Course[];
   onSubmit: (d: Partial<Lead>) => void;
   isPending: boolean;
 }) {
   const [status, setStatus] = useState(lead.status);
-    const [branchId, setBranchId] = useState(
+  const [branchId, setBranchId] = useState(
     lead.branchId ? String(lead.branchId) : "",
+  );
+  // Pre-fill current course
+  const [courseInterested, setCourseInterested] = useState(
+    lead.courseInterested ?? "",
   );
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -324,11 +333,13 @@ function EditLeadForm({
       phone: fd.get("phone") as string,
       parentPhone: (fd.get("parentPhone") as string) || null,
       address: (fd.get("address") as string) || null,
-      courseInterested: fd.get("courseInterested") as string,
+      courseInterested, // Select state se le rahe hain, FormData se nahi
       status,
       branchId: parseBranchId(branchId),
     });
   };
+
+  const activeCourses = courses.filter((c) => c.status === "Active");
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
@@ -368,15 +379,33 @@ function EditLeadForm({
             className="rounded-xl"
           />
         </div>
-        <div className="space-y-1.5">
+
+        {/* ── Course Select (leads wala same dropdown) ───────────────────── */}
+        <div className="col-span-2 space-y-1.5">
           <Label>Course Interested *</Label>
-          <Input
-            name="courseInterested"
-            defaultValue={lead.courseInterested}
-            required
-            className="rounded-xl"
-          />
+          <Select value={courseInterested} onValueChange={setCourseInterested}>
+            <SelectTrigger
+              className="rounded-xl"
+              data-testid="select-edit-courseInterested"
+            >
+              <SelectValue placeholder="Select a course..." />
+            </SelectTrigger>
+            <SelectContent>
+              {activeCourses.length > 0 ? (
+                activeCourses.map((course) => (
+                  <SelectItem key={course.id} value={course.name}>
+                    {course.name}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="_none" disabled>
+                  No active courses available
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
         </div>
+
         <div className="col-span-2 space-y-1.5">
           <Label>Address</Label>
           <Input
@@ -385,7 +414,7 @@ function EditLeadForm({
             className="rounded-xl"
           />
         </div>
-         <div className="col-span-2">
+        <div className="col-span-2">
           <BranchSelect value={branchId} onChange={setBranchId} />
         </div>
         <div className="col-span-2 space-y-1.5">

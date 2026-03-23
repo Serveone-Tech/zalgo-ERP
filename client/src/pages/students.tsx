@@ -6,6 +6,7 @@ import {
 } from "@/hooks/use-students";
 import { BranchSelect, parseBranchId } from "@/components/branch-select";
 import { useBranches } from "@/hooks/use-branches";
+import { useCourses } from "@/hooks/use-courses";
 import { ImportDialog, type FieldDef } from "@/components/import-dialog";
 import { format } from "date-fns";
 import { useLocation, useSearch } from "wouter";
@@ -34,11 +35,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useBranch } from "@/contexts/branch";
+import type { Course, Student } from "@shared/schema";
 
 const STUDENT_FIELDS: FieldDef[] = [
   {
@@ -58,6 +67,7 @@ const STUDENT_FIELDS: FieldDef[] = [
   { key: "parentName", label: "Parent Name", sample: "Ramesh Sharma" },
   { key: "parentPhone", label: "Parent Mobile", sample: "9988776655" },
   { key: "address", label: "Address", sample: "123, Model Town, Delhi" },
+  { key: "courseInterested", label: "Course", sample: "JEE Main & Advanced" },
 ];
 
 export default function StudentsPage() {
@@ -70,7 +80,9 @@ export default function StudentsPage() {
   const apiParams = buildApiParams(filter);
 
   const queryParams = {
-    ...(apiParams ? Object.fromEntries(new URLSearchParams(apiParams.slice(1))) : {}),
+    ...(apiParams
+      ? Object.fromEntries(new URLSearchParams(apiParams.slice(1)))
+      : {}),
     ...(selectedBranchId ? { branchId: String(selectedBranchId) } : {}),
   };
 
@@ -85,6 +97,8 @@ export default function StudentsPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { data: branches = [] } = useBranches();
+  const { data: courses = [] } = useCourses();
+
   const getBranchName = (id: number | null | undefined) =>
     branches.find((b) => b.id === id)?.name ?? "—";
 
@@ -105,6 +119,7 @@ export default function StudentsPage() {
               parentName: row.parentName || "",
               parentPhone: row.parentPhone || "",
               address: row.address || "",
+              courseInterested: row.courseInterested || null,
               status: "Active",
             },
             {
@@ -125,6 +140,7 @@ export default function StudentsPage() {
     }
     return { success, failed };
   };
+
   const filtered = students?.filter(
     (s) =>
       s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -185,7 +201,10 @@ export default function StudentsPage() {
                     Register Student
                   </DialogTitle>
                 </DialogHeader>
-                <StudentForm onSuccess={() => setIsAddOpen(false)} />
+                <StudentForm
+                  courses={courses}
+                  onSuccess={() => setIsAddOpen(false)}
+                />
               </DialogContent>
             </Dialog>
           )}
@@ -199,6 +218,7 @@ export default function StudentsPage() {
               <TableHead className="font-semibold w-[100px]">Reg No</TableHead>
               <TableHead className="font-semibold">Student</TableHead>
               <TableHead className="font-semibold">Contact</TableHead>
+              <TableHead className="font-semibold">Course</TableHead>
               <TableHead className="font-semibold">Branch</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Joined</TableHead>
@@ -209,7 +229,7 @@ export default function StudentsPage() {
             {isLoading ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="text-center py-8 text-muted-foreground"
                 >
                   Loading...
@@ -218,7 +238,7 @@ export default function StudentsPage() {
             ) : filtered?.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No students found
@@ -249,6 +269,10 @@ export default function StudentsPage() {
                     <div className="text-xs text-muted-foreground">
                       P: {student.parentName} ({student.parentPhone})
                     </div>
+                  </TableCell>
+                  {/* ── Course column — ab student.courseInterested directly available hai ── */}
+                  <TableCell className="text-sm text-muted-foreground">
+                    {student.courseInterested || "—"}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {getBranchName(student.branchId)}
@@ -300,12 +324,19 @@ export default function StudentsPage() {
   );
 }
 
-function StudentForm({ onSuccess }: { onSuccess: () => void }) {
+function StudentForm({
+  courses,
+  onSuccess,
+}: {
+  courses: Course[];
+  onSuccess: () => void;
+}) {
   const createMutation = useCreateStudent();
   const { toast } = useToast();
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [branchId, setBranchId] = useState("");
+  const [courseInterested, setCourseInterested] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -313,10 +344,8 @@ function StudentForm({ onSuccess }: { onSuccess: () => void }) {
     setShowCamera(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    } catch {
       toast({
         title: "Camera Error",
         description: "Could not access camera",
@@ -333,17 +362,17 @@ function StudentForm({ onSuccess }: { onSuccess: () => void }) {
         canvasRef.current.width = videoRef.current.videoWidth;
         canvasRef.current.height = videoRef.current.videoHeight;
         context.drawImage(videoRef.current, 0, 0);
-        const dataUrl = canvasRef.current.toDataURL("image/jpeg");
-        setProfilePic(dataUrl);
+        setProfilePic(canvasRef.current.toDataURL("image/jpeg"));
         stopCamera();
       }
     }
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach((track) => track.stop());
+    if (videoRef.current?.srcObject) {
+      (videoRef.current.srcObject as MediaStream)
+        .getTracks()
+        .forEach((t) => t.stop());
     }
     setShowCamera(false);
   };
@@ -352,28 +381,27 @@ function StudentForm({ onSuccess }: { onSuccess: () => void }) {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfilePic(reader.result as string);
-      };
+      reader.onloadend = () => setProfilePic(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const fd = new FormData(e.currentTarget);
     createMutation.mutate(
       {
         enrollmentNo: `BSC${Math.floor(1000 + Math.random() * 9000)}`,
-        name: formData.get("name") as string,
-        email: (formData.get("email") as string) || null,
-        phone: formData.get("phone") as string,
-        parentName: formData.get("parentName") as string,
-        parentPhone: formData.get("parentPhone") as string,
-        address: (formData.get("address") as string) || null,
+        name: fd.get("name") as string,
+        email: (fd.get("email") as string) || null,
+        phone: fd.get("phone") as string,
+        parentName: fd.get("parentName") as string,
+        parentPhone: fd.get("parentPhone") as string,
+        address: (fd.get("address") as string) || null,
         profilePicture: profilePic,
         status: "Active",
         branchId: parseBranchId(branchId),
+        courseInterested: courseInterested || null, // ✅ ab payload mein jayega
       },
       {
         onSuccess: () => {
@@ -383,6 +411,8 @@ function StudentForm({ onSuccess }: { onSuccess: () => void }) {
       },
     );
   };
+
+  const activeCourses = courses.filter((c) => c.status === "Active");
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pt-4">
@@ -398,11 +428,10 @@ function StudentForm({ onSuccess }: { onSuccess: () => void }) {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => startCamera()}
+            onClick={startCamera}
             className="rounded-lg"
           >
-            <Camera className="w-4 h-4 mr-2" />
-            Capture
+            <Camera className="w-4 h-4 mr-2" /> Capture
           </Button>
           <div className="relative">
             <Input
@@ -419,8 +448,7 @@ function StudentForm({ onSuccess }: { onSuccess: () => void }) {
               onClick={() => document.getElementById("pic-upload")?.click()}
               className="rounded-lg"
             >
-              <Upload className="w-4 h-4 mr-2" />
-              Upload
+              <Upload className="w-4 h-4 mr-2" /> Upload
             </Button>
           </div>
         </div>
@@ -489,10 +517,37 @@ function StudentForm({ onSuccess }: { onSuccess: () => void }) {
           <Label htmlFor="address">Address</Label>
           <Input id="address" name="address" className="rounded-xl" />
         </div>
+
+        <div className="space-y-2 sm:col-span-2">
+          <Label>Course Interested</Label>
+          <Select value={courseInterested} onValueChange={setCourseInterested}>
+            <SelectTrigger
+              data-testid="select-courseInterested"
+              className="rounded-xl"
+            >
+              <SelectValue placeholder="Select a course..." />
+            </SelectTrigger>
+            <SelectContent>
+              {activeCourses.length > 0 ? (
+                activeCourses.map((c) => (
+                  <SelectItem key={c.id} value={c.name}>
+                    {c.name}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="_none" disabled>
+                  No active courses available
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="sm:col-span-2">
           <BranchSelect value={branchId} onChange={setBranchId} />
         </div>
       </div>
+
       <Button
         type="submit"
         className="w-full rounded-xl mt-2"
