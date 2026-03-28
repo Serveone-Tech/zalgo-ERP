@@ -89,9 +89,11 @@ export default function ReportsPage() {
   const inactiveStudents =
     students?.filter((s: any) => s.status !== "Active").length || 0;
 
-  // ── Fee collections ──────────────────────────────────────────────────────────
+  // ── Fees table — authoritative source for fee collections ────────────────────
   const directFeeCollected =
     fees?.reduce((s: number, f: any) => s + f.amountPaid, 0) || 0;
+
+  // ── Pending installments ─────────────────────────────────────────────────────
   const pendingInstallments =
     installments?.filter((i: any) => i.status === "pending") || [];
   const totalPending = pendingInstallments.reduce(
@@ -99,31 +101,32 @@ export default function ReportsPage() {
     0,
   );
 
-  // ── Transactions ─────────────────────────────────────────────────────────────
-  const incomeTransactions =
-    transactions?.filter((t: any) => t.type === "Income") || [];
-  const expenseTransactions =
+  // ── Transactions — only non-fee income (Book Sales, Donation, etc.) ──────────
+  // Fee Collection category ko skip karo kyunki fees table already accurate hai
+  const allExpenseTransactions =
     transactions?.filter((t: any) => t.type === "Expense") || [];
 
-  // Non-fee income (Book Sales, Donation etc.) — fee collection transactions exclude karo
-  // kyunki fees already fees table mein hain
-  const nonFeeIncomeTransactions = incomeTransactions.filter(
-    (t: any) => t.category !== "Fee Collection",
-  );
+  const nonFeeIncomeTransactions =
+    transactions?.filter(
+      (t: any) => t.type === "Income" && t.category !== "Fee Collection",
+    ) || [];
+
   const nonFeeIncome = nonFeeIncomeTransactions.reduce(
     (s: number, t: any) => s + t.amount,
     0,
   );
 
-  // ── Total Income = Fees Collected + Other Income (non-fee transactions) ──────
+  // ── Total Income = Fees (fees table) + Other Income (non-fee transactions) ───
   const totalIncome = directFeeCollected + nonFeeIncome;
-  const totalExpense = expenseTransactions.reduce(
+
+  const totalExpense = allExpenseTransactions.reduce(
     (s: number, t: any) => s + t.amount,
     0,
   );
   const netBalance = totalIncome - totalExpense;
 
-  // Income breakdown by category — fees separately + other categories
+  // ── Income breakdown by category ─────────────────────────────────────────────
+  // Fee Collection = fees table total, other categories = transactions table
   const otherIncomeByCategory = nonFeeIncomeTransactions.reduce(
     (acc: any, t: any) => {
       acc[t.category] = (acc[t.category] || 0) + t.amount;
@@ -132,19 +135,21 @@ export default function ReportsPage() {
     {},
   );
 
-  // Merge: Fee Collection as one category + other income
   const incomeByCategory: Record<string, number> = {
     ...(directFeeCollected > 0 ? { "Fee Collection": directFeeCollected } : {}),
     ...otherIncomeByCategory,
   };
 
-  // Expense category breakdown
-  const expenseByCategory = expenseTransactions.reduce((acc: any, t: any) => {
-    acc[t.category] = (acc[t.category] || 0) + t.amount;
-    return acc;
-  }, {});
+  // ── Expense breakdown by category ────────────────────────────────────────────
+  const expenseByCategory = allExpenseTransactions.reduce(
+    (acc: any, t: any) => {
+      acc[t.category] = (acc[t.category] || 0) + t.amount;
+      return acc;
+    },
+    {},
+  );
 
-  // Payment mode breakdown from fees table
+  // ── Payment mode breakdown from fees table ───────────────────────────────────
   const paymentModes = fees?.reduce((acc: any, f: any) => {
     acc[f.paymentMode] = (acc[f.paymentMode] || 0) + f.amountPaid;
     return acc;
@@ -237,7 +242,7 @@ export default function ReportsPage() {
             </p>
           </div>
 
-          {/* Total Income = Fees + Other Income */}
+          {/* Total Income = Fees (fees table) + Other Income (transactions) */}
           <div className="bg-card rounded-2xl p-5 border border-border/50 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm text-muted-foreground font-medium">
@@ -269,7 +274,7 @@ export default function ReportsPage() {
               ₹{totalExpense.toLocaleString("en-IN")}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {expenseTransactions.length} expense entries
+              {allExpenseTransactions.length} expense entries
             </p>
           </div>
         </div>

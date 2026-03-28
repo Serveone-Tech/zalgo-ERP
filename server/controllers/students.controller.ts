@@ -7,7 +7,11 @@ import { z } from "zod";
 export const StudentsController = {
   async list(req: Request, res: Response) {
     const { period, from, to, branchId } = req.query as Record<string, string>;
-    const { from: fromDate, to: toDate } = parsePeriodToDateRange(period, from, to);
+    const { from: fromDate, to: toDate } = parsePeriodToDateRange(
+      period,
+      from,
+      to,
+    );
     const students = await storage.getStudents({
       branchId: branchId ? Number(branchId) : undefined,
       from: fromDate,
@@ -29,7 +33,12 @@ export const StudentsController = {
       res.status(201).json(student);
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+        return res
+          .status(400)
+          .json({
+            message: err.errors[0].message,
+            field: err.errors[0].path.join("."),
+          });
       throw err;
     }
   },
@@ -41,7 +50,12 @@ export const StudentsController = {
       res.json(student);
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+        return res
+          .status(400)
+          .json({
+            message: err.errors[0].message,
+            field: err.errors[0].path.join("."),
+          });
       throw err;
     }
   },

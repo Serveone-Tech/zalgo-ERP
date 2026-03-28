@@ -51,12 +51,32 @@ export default function CoursesPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
-  const handleDelete = (id: number) => {
-    if (confirm("Are you sure you want to delete this course?")) {
-      deleteMutation.mutate(id, {
-        onSuccess: () => toast({ title: "Course deleted" }),
-      });
-    }
+  // ── Delete confirm modal state ───────────────────────────────────────────────
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+
+  // ── Delete handler — called from modal confirm button ────────────────────────
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        toast({
+          title: "Course Deleted",
+          description: `"${deleteTarget.name}" has been permanently deleted.`,
+        });
+        setDeleteTarget(null);
+      },
+      onError: () => {
+        toast({
+          title: "Delete Failed",
+          description: "Something went wrong. Please try again.",
+          variant: "destructive",
+        });
+        setDeleteTarget(null);
+      },
+    });
   };
 
   return (
@@ -194,7 +214,9 @@ export default function CoursesPage() {
                   variant="destructive"
                   size="icon"
                   className="opacity-0 group-hover:opacity-100 transition-opacity rounded-lg h-8 w-8"
-                  onClick={() => handleDelete(course.id)}
+                  onClick={() =>
+                    setDeleteTarget({ id: course.id, name: course.name })
+                  }
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -203,6 +225,50 @@ export default function CoursesPage() {
           ))
         )}
       </div>
+
+      {/* ── Delete Confirm Modal ─────────────────────────────────────────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-destructive" />
+              </div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Delete Course?
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-foreground">
+                  "{deleteTarget.name}"
+                </span>
+                ?
+                <br />
+                All enrolled students and related data will be permanently
+                removed.
+              </p>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1 rounded-xl"
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { type InsertStudent } from "@shared/schema";
 
+// ── Helper: saare student-related caches ek saath invalidate karo ─────────────
+function invalidateAll(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: [api.students.list.path] });
+  queryClient.invalidateQueries({ queryKey: [api.dashboard.stats.path] });
+  queryClient.invalidateQueries({ queryKey: ["/api/fees"] });
+}
+
 export function useStudents(params?: Record<string, string>) {
   const qs =
     params && Object.keys(params).length
@@ -16,6 +23,22 @@ export function useStudents(params?: Record<string, string>) {
       if (!res.ok) throw new Error("Failed to fetch students");
       return api.students.list.responses[200].parse(await res.json());
     },
+    staleTime: 0, // always fresh
+  });
+}
+
+export function useStudent(id: number) {
+  return useQuery({
+    queryKey: [api.students.list.path, id],
+    queryFn: async () => {
+      const res = await fetch(`/api/students/${id}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch student");
+      return res.json();
+    },
+    enabled: !!id,
+    staleTime: 0,
   });
 }
 
@@ -33,10 +56,27 @@ export function useCreateStudent() {
       if (!res.ok) throw new Error("Failed to create student");
       return api.students.create.responses[201].parse(await res.json());
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.students.list.path] });
-      queryClient.invalidateQueries({ queryKey: [api.dashboard.stats.path] });
+    onSuccess: () => invalidateAll(queryClient),
+  });
+}
+
+export function useUpdateStudent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ...updates
+    }: { id: number } & Partial<InsertStudent>) => {
+      const res = await fetch(`/api/students/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to update student");
+      return res.json();
     },
+    onSuccess: () => invalidateAll(queryClient),
   });
 }
 
@@ -51,7 +91,6 @@ export function useDeleteStudent() {
       });
       if (!res.ok) throw new Error("Failed to delete student");
     },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: [api.students.list.path] }),
+    onSuccess: () => invalidateAll(queryClient), // ← dashboard bhi refresh hoga
   });
 }

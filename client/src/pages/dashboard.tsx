@@ -55,10 +55,12 @@ export default function Dashboard() {
     navigate(`${path}${qs}`);
   };
 
+  const fmt = (val: number) => `₹${val.toLocaleString("en-IN")}`;
+
   const statCards = [
     {
       title: "Total Students",
-      value: stats?.totalStudents ?? 0,
+      value: String(stats?.totalStudents ?? 0),
       icon: Users,
       color: "text-blue-600",
       bg: "bg-blue-50",
@@ -67,7 +69,7 @@ export default function Dashboard() {
     },
     {
       title: "Active Enquiries",
-      value: stats?.activeLeads ?? 0,
+      value: String(stats?.activeLeads ?? 0),
       icon: UserSquare2,
       color: "text-amber-600",
       bg: "bg-amber-50",
@@ -76,7 +78,7 @@ export default function Dashboard() {
     },
     {
       title: "Total Teachers",
-      value: stats?.totalTeachers ?? 0,
+      value: String(stats?.totalTeachers ?? 0),
       icon: GraduationCap,
       color: "text-emerald-600",
       bg: "bg-emerald-50",
@@ -85,7 +87,7 @@ export default function Dashboard() {
     },
     {
       title: "Fees Collected",
-      value: `$${(stats?.totalRevenue ?? 0).toLocaleString("en-IN")}`,
+      value: fmt(stats?.totalRevenue ?? 0),
       icon: CreditCard,
       color: "text-purple-600",
       bg: "bg-purple-50",
@@ -94,7 +96,7 @@ export default function Dashboard() {
     },
     {
       title: "Pending Fees",
-      value: `$${(stats?.pendingFees ?? 0).toLocaleString("en-IN")}`,
+      value: fmt(stats?.pendingFees ?? 0),
       icon: AlertCircle,
       color: "text-red-600",
       bg: "bg-red-50",
@@ -103,7 +105,7 @@ export default function Dashboard() {
     },
     {
       title: "Total Income",
-      value: `$${(stats?.totalIncome ?? 0).toLocaleString("en-IN")}`,
+      value: fmt(stats?.totalIncome ?? 0),
       icon: TrendingUp,
       color: "text-emerald-600",
       bg: "bg-emerald-50",
@@ -112,7 +114,7 @@ export default function Dashboard() {
     },
     {
       title: "Total Expense",
-      value: `$${(stats?.totalExpense ?? 0).toLocaleString("en-IN")}`,
+      value: fmt(stats?.totalExpense ?? 0),
       icon: TrendingDown,
       color: "text-red-600",
       bg: "bg-red-50",
@@ -145,27 +147,36 @@ export default function Dashboard() {
             onClick={() => navWithFilter(stat.path)}
             data-testid={stat.testid}
           >
-            <CardContent className="p-5">
+            <CardContent className="p-4">
               {isLoading ? (
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-8 w-16" />
                 </div>
               ) : (
-                <div className="flex justify-between items-start">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-muted-foreground">
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-start">
+                    <p className="text-xs font-medium text-muted-foreground leading-tight">
                       {stat.title}
                     </p>
-                    <p className="text-2xl font-bold text-foreground mt-1 tracking-tight truncate">
-                      {stat.value}
-                    </p>
+                    <div
+                      className={`p-2 rounded-xl ${stat.bg} group-hover:scale-110 transition-transform shrink-0 ml-1`}
+                    >
+                      <stat.icon className={`w-4 h-4 ${stat.color}`} />
+                    </div>
                   </div>
-                  <div
-                    className={`p-2.5 rounded-xl ${stat.bg} group-hover:scale-110 transition-transform shrink-0 ml-2`}
+                  {/* Value — font size auto-adjusts based on length */}
+                  <p
+                    className={`font-bold text-foreground leading-tight ${
+                      stat.value.length > 10
+                        ? "text-base"
+                        : stat.value.length > 7
+                          ? "text-lg"
+                          : "text-2xl"
+                    }`}
                   >
-                    <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                  </div>
+                    {stat.value}
+                  </p>
                 </div>
               )}
               <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground group-hover:text-primary transition-colors">

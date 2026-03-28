@@ -48,6 +48,18 @@ function useTransactions(branchId?: number | null) {
   });
 }
 
+// ── Fees table se actual fee collections fetch karo ──────────────────────────
+function useFees() {
+  return useQuery({
+    queryKey: ["/api/fees"],
+    queryFn: async () => {
+      const res = await fetch("/api/fees", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+}
+
 const incomeCategories = [
   "Fee Collection",
   "Donation",
@@ -79,13 +91,14 @@ const TRANSACTION_FIELDS: FieldDef[] = [
     required: true,
     sample: "Fee Collection",
   },
-  { key: "amount", label: "Amount ($)", required: true, sample: "5000" },
+  { key: "amount", label: "Amount (₹)", required: true, sample: "5000" },
   { key: "description", label: "Description", sample: "Monthly fee payment" },
 ];
 
 export default function TransactionsPage() {
   const { selectedBranchId } = useBranch();
   const { data: transactions, isLoading } = useTransactions(selectedBranchId);
+  const { data: fees } = useFees();
   const [isOpen, setIsOpen] = useState(false);
   const [txType, setTxType] = useState<"Income" | "Expense">("Income");
   const [branchId, setBranchId] = useState("");
@@ -96,6 +109,12 @@ export default function TransactionsPage() {
   const getBranchName = (id: number | null | undefined) =>
     branches.find((b) => b.id === id)?.name ?? "—";
   const canDelete = user?.role === "admin";
+
+  // ── Delete confirm modal state ───────────────────────────────────────────────
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: number;
+    label: string;
+  } | null>(null);
 
   const handleBulkImport = async (rows: Record<string, string>[]) => {
     let success = 0;
@@ -156,7 +175,19 @@ export default function TransactionsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
-      toast({ title: "Transaction deleted" });
+      toast({
+        title: "Transaction Deleted",
+        description: "Transaction has been permanently removed.",
+      });
+      setDeleteTarget(null);
+    },
+    onError: () => {
+      toast({
+        title: "Delete Failed",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+      setDeleteTarget(null);
     },
   });
 
@@ -172,14 +203,25 @@ export default function TransactionsPage() {
     });
   };
 
-  const totalIncome =
+  // ── Total Income = Fees table (authoritative) + Non-fee transactions ─────────
+  // Fee Collection category transactions skip karo — fees table accurate hai
+  const feeCollected =
+    fees?.reduce((s: number, f: any) => s + f.amountPaid, 0) || 0;
+
+  const nonFeeIncome =
     transactions
-      ?.filter((t: any) => t.type === "Income")
+      ?.filter(
+        (t: any) => t.type === "Income" && t.category !== "Fee Collection",
+      )
       .reduce((s: number, t: any) => s + t.amount, 0) || 0;
+
+  const totalIncome = feeCollected + nonFeeIncome;
+
   const totalExpense =
     transactions
       ?.filter((t: any) => t.type === "Expense")
       .reduce((s: number, t: any) => s + t.amount, 0) || 0;
+
   const balance = totalIncome - totalExpense;
 
   return (
@@ -250,7 +292,7 @@ export default function TransactionsPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Amount ($) *</Label>
+                  <Label>Amount (₹) *</Label>
                   <Input
                     name="amount"
                     type="number"
@@ -282,8 +324,9 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Summary */}
+      {/* ── Summary Cards ────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Total Income = Fees + Other Income */}
         <div className="bg-card rounded-2xl p-5 border border-border/50 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium text-muted-foreground">
@@ -294,9 +337,14 @@ export default function TransactionsPage() {
             </div>
           </div>
           <p className="text-2xl font-bold text-emerald-600">
-            ${totalIncome.toLocaleString("en-IN")}
+            ₹{totalIncome.toLocaleString("en-IN")}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Fees ₹{feeCollected.toLocaleString("en-IN")} + Other ₹
+            {nonFeeIncome.toLocaleString("en-IN")}
           </p>
         </div>
+
         <div className="bg-card rounded-2xl p-5 border border-border/50 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium text-muted-foreground">
@@ -307,9 +355,10 @@ export default function TransactionsPage() {
             </div>
           </div>
           <p className="text-2xl font-bold text-destructive">
-            ${totalExpense.toLocaleString("en-IN")}
+            ₹{totalExpense.toLocaleString("en-IN")}
           </p>
         </div>
+
         <div
           className={`bg-card rounded-2xl p-5 border shadow-sm ${balance >= 0 ? "border-primary/20 bg-primary/5" : "border-destructive/20 bg-destructive/5"}`}
         >
@@ -326,11 +375,12 @@ export default function TransactionsPage() {
           <p
             className={`text-2xl font-bold ${balance >= 0 ? "text-primary" : "text-destructive"}`}
           >
-            ${Math.abs(balance).toLocaleString("en-IN")}
+            ₹{Math.abs(balance).toLocaleString("en-IN")}
           </p>
         </div>
       </div>
 
+      {/* ── Transactions Table ───────────────────────────────────────────────── */}
       <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center text-muted-foreground">
@@ -391,7 +441,7 @@ export default function TransactionsPage() {
                       <span
                         className={`font-bold ${tx.type === "Income" ? "text-emerald-600" : "text-destructive"}`}
                       >
-                        {tx.type === "Income" ? "+" : "-"}$
+                        {tx.type === "Income" ? "+" : "-"}₹
                         {tx.amount.toLocaleString("en-IN")}
                       </span>
                     </TableCell>
@@ -416,7 +466,12 @@ export default function TransactionsPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 rounded-lg text-destructive hover:bg-destructive/10"
-                          onClick={() => deleteMutation.mutate(tx.id)}
+                          onClick={() =>
+                            setDeleteTarget({
+                              id: tx.id,
+                              label: `${tx.type} — ${tx.category} ₹${tx.amount.toLocaleString("en-IN")}`,
+                            })
+                          }
                           data-testid={`btn-delete-tx-${tx.id}`}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -430,6 +485,49 @@ export default function TransactionsPage() {
           </div>
         )}
       </div>
+
+      {/* ── Delete Confirm Modal ─────────────────────────────────────────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-destructive" />
+              </div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Delete Transaction?
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-foreground">
+                  {deleteTarget.label}
+                </span>
+                ?
+                <br />
+                This action is permanent and cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1 rounded-xl"
+                onClick={() => deleteMutation.mutate(deleteTarget.id)}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

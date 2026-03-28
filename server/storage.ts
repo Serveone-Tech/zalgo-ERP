@@ -392,9 +392,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteStudent(id: number): Promise<void> {
+    await db.delete(feeInstallments).where(eq(feeInstallments.studentId, id));
+    await db.delete(feePlans).where(eq(feePlans.studentId, id));
+    await db.delete(fees).where(eq(fees.studentId, id));
+    await db.delete(enrollments).where(eq(enrollments.studentId, id));
+
+    // Ab student delete karo
     await db.delete(students).where(eq(students.id, id));
   }
-
   // Teachers
   async getTeachers(opts?: {
     branchId?: number;
@@ -617,6 +622,7 @@ export class DatabaseStorage implements IStorage {
     branchId?: number;
   }) {
     const { from, to, branchId } = opts || {};
+    const allTransactions = await db.select().from(transactions);
 
     const [studentsResult] = await db
       .select({ count: count() })
@@ -673,6 +679,14 @@ export class DatabaseStorage implements IStorage {
       }),
     );
 
+    const totalIncome = allTransactions
+      .filter((t) => t.type === "Income")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalExpense = allTransactions
+      .filter((t) => t.type === "Expense")
+      .reduce((sum, t) => sum + t.amount, 0);
+
     return {
       totalStudents: studentsResult.count,
       activeLeads: leadsResult.count,
@@ -681,6 +695,8 @@ export class DatabaseStorage implements IStorage {
       pendingFees,
       recentLeads,
       courseEnrollments,
+      totalIncome,
+      totalExpense,
     };
   }
 
