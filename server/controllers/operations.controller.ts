@@ -9,25 +9,58 @@ export const InventoryController = {
     const results = await storage.getInventory();
     res.json(results);
   },
+
   async create(req: Request, res: Response) {
     try {
-      const bodySchema = api.inventory.create.input.extend({ quantity: z.coerce.number() });
+      const bodySchema = api.inventory.create.input.extend({
+        quantity: z.coerce.number(),
+      });
       const input = bodySchema.parse(req.body);
       const result = await storage.createInventory(input);
       res.status(201).json(result);
     } catch (err) {
-      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      if (err instanceof z.ZodError)
+        return res.status(400).json({ message: err.errors[0].message });
       throw err;
     }
+  },
+
+  // ── UPDATE — pehle missing tha ────────────────────────────────────────────
+  async update(req: Request, res: Response) {
+    try {
+      const id = Number(req.params.id);
+      const bodySchema = z.object({
+        itemName: z.string().optional(),
+        category: z.string().nullable().optional(),
+        quantity: z.coerce.number().optional(),
+        branchId: z.coerce.number().nullable().optional(),
+      });
+      const input = bodySchema.parse(req.body);
+      const result = await storage.updateInventory(id, input);
+      res.json(result);
+    } catch (err) {
+      if (err instanceof z.ZodError)
+        return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  },
+
+  // ── DELETE — pehle missing tha ────────────────────────────────────────────
+  async remove(req: Request, res: Response) {
+    await storage.deleteInventory(Number(req.params.id));
+    res.status(204).send();
   },
 };
 
 export const TransactionsController = {
   async list(req: Request, res: Response) {
-    const branchId = req.query.branchId ? Number(req.query.branchId) : undefined;
+    const branchId = req.query.branchId
+      ? Number(req.query.branchId)
+      : undefined;
     const results = await storage.getTransactions(branchId);
     res.json(results);
   },
+
   async create(req: Request, res: Response) {
     try {
       const bodySchema = api.transactions.create.input.extend({
@@ -39,7 +72,8 @@ export const TransactionsController = {
       const result = await storage.createTransaction(input);
       res.status(201).json(result);
     } catch (err) {
-      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      if (err instanceof z.ZodError)
+        return res.status(400).json({ message: err.errors[0].message });
       throw err;
     }
   },
@@ -55,15 +89,20 @@ export const CommunicationsController = {
     const results = await storage.getCommunications();
     res.json(results);
   },
+
   async send(req: Request, res: Response) {
     try {
       const input = api.communications.send.input.parse(req.body);
 
       if (input.recipientType === "Bulk" && input.courseId) {
         const students = await storage.getCourseStudents(input.courseId);
-        console.log(`[Bulk] Sending ${input.type} to ${students.length} students in course ${input.courseId}`);
+        console.log(
+          `[Bulk] Sending ${input.type} to ${students.length} students in course ${input.courseId}`,
+        );
       } else {
-        console.log(`[Single] Sending ${input.type} to ${input.recipientType} ${input.recipientId}`);
+        console.log(
+          `[Single] Sending ${input.type} to ${input.recipientType} ${input.recipientId}`,
+        );
       }
 
       const result = await storage.createCommunication({
@@ -75,7 +114,8 @@ export const CommunicationsController = {
       });
       res.status(201).json(result);
     } catch (err) {
-      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      if (err instanceof z.ZodError)
+        return res.status(400).json({ message: err.errors[0].message });
       throw err;
     }
   },
@@ -84,9 +124,17 @@ export const CommunicationsController = {
 export const DashboardController = {
   async stats(req: Request, res: Response) {
     const { period, from, to, branchId } = req.query as Record<string, string>;
-    const { from: fromDate, to: toDate } = parsePeriodToDateRange(period, from, to);
+    const { from: fromDate, to: toDate } = parsePeriodToDateRange(
+      period,
+      from,
+      to,
+    );
     const branchFilter = branchId ? Number(branchId) : undefined;
-    const stats = await storage.getDashboardStats({ from: fromDate, to: toDate, branchId: branchFilter });
+    const stats = await storage.getDashboardStats({
+      from: fromDate,
+      to: toDate,
+      branchId: branchFilter,
+    });
     res.json(stats);
   },
 };

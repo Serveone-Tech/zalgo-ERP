@@ -34,6 +34,7 @@ function useInventory() {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
+    staleTime: 0, // ← always fresh
   });
 }
 
@@ -58,10 +59,21 @@ export default function InventoryPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: branches = [] } = useBranches();
+
+  // ── Delete confirm modal state ─────────────────────────────────────────────
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+
   const getBranchName = (id: number | null | undefined) =>
     branches.find((b) => b.id === id)?.name ?? "—";
   const canEdit = user?.role === "admin" || user?.role === "staff";
   const canDelete = user?.role === "admin";
+
+  // ── Helper: invalidate inventory cache ────────────────────────────────────
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
 
   const handleBulkImport = async (rows: Record<string, string>[]) => {
     let success = 0;
@@ -84,7 +96,7 @@ export default function InventoryPage() {
         failed++;
       }
     }
-    queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+    invalidate();
     return { success, failed };
   };
 
@@ -96,13 +108,21 @@ export default function InventoryPage() {
         body: JSON.stringify(data),
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) throw new Error("Failed to add item");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      invalidate();
       toast({ title: "Item added to inventory" });
       setIsOpen(false);
+      setBranchId("");
+    },
+    onError: () => {
+      toast({
+        title: "Failed to Add",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -114,13 +134,23 @@ export default function InventoryPage() {
         body: JSON.stringify(data),
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) throw new Error("Failed to update item");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      toast({ title: "Item updated" });
+      invalidate();
+      toast({
+        title: "Item Updated",
+        description: "Changes saved successfully.",
+      });
       setEditItem(null);
+    },
+    onError: () => {
+      toast({
+        title: "Update Failed",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -130,11 +160,23 @@ export default function InventoryPage() {
         method: "DELETE",
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) throw new Error("Failed to delete item");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      toast({ title: "Item deleted" });
+      invalidate();
+      toast({
+        title: "Item Deleted",
+        description: `"${deleteTarget?.name}" has been permanently removed.`,
+      });
+      setDeleteTarget(null);
+    },
+    onError: () => {
+      toast({
+        title: "Delete Failed",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+      setDeleteTarget(null);
     },
   });
 
@@ -276,6 +318,7 @@ export default function InventoryPage() {
         </div>
       </div>
 
+      {/* Table */}
       <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center text-muted-foreground">
@@ -331,7 +374,13 @@ export default function InventoryPage() {
                           <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
                         )}
                         <span
-                          className={`font-semibold ${item.quantity === 0 ? "text-destructive" : item.quantity < 5 ? "text-amber-600" : "text-foreground"}`}
+                          className={`font-semibold ${
+                            item.quantity === 0
+                              ? "text-destructive"
+                              : item.quantity < 5
+                                ? "text-amber-600"
+                                : "text-foreground"
+                          }`}
                         >
                           {item.quantity}
                         </span>
@@ -390,7 +439,12 @@ export default function InventoryPage() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 rounded-lg text-destructive hover:bg-destructive/10"
-                            onClick={() => deleteMutation.mutate(item.id)}
+                            onClick={() =>
+                              setDeleteTarget({
+                                id: item.id,
+                                name: item.itemName,
+                              })
+                            }
                             data-testid={`btn-delete-inventory-${item.id}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -406,7 +460,7 @@ export default function InventoryPage() {
         )}
       </div>
 
-      {/* Edit Dialog */}
+      {/* ── Edit Dialog ──────────────────────────────────────────────────────── */}
       {editItem && (
         <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
           <DialogContent className="sm:max-w-md rounded-2xl">
@@ -453,6 +507,49 @@ export default function InventoryPage() {
             </form>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* ── Delete Confirm Modal ─────────────────────────────────────────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-destructive" />
+              </div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Delete Item?
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-foreground">
+                  "{deleteTarget.name}"
+                </span>
+                ?
+                <br />
+                This action is permanent and cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1 rounded-xl"
+                onClick={() => deleteMutation.mutate(deleteTarget.id)}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -727,6 +727,22 @@ export class DatabaseStorage implements IStorage {
     return i;
   }
 
+  async updateInventory(
+    id: number,
+    updates: Partial<InsertInventory>,
+  ): Promise<InventoryItem> {
+    const [i] = await db
+      .update(inventory)
+      .set(updates)
+      .where(eq(inventory.id, id))
+      .returning();
+    return i;
+  }
+
+  async deleteInventory(id: number): Promise<void> {
+    await db.delete(inventory).where(eq(inventory.id, id));
+  }
+
   // Transactions
   async getTransactions(branchId?: number): Promise<Transaction[]> {
     if (branchId) {
