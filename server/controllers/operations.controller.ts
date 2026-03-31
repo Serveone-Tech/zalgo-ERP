@@ -3,14 +3,15 @@ import { storage } from "../storage";
 import { api } from "@shared/routes";
 import { parsePeriodToDateRange } from "../utils/period";
 import { z } from "zod";
+import { sendMessage } from "server/utils/messaging.service";
 
 export const InventoryController = {
-  async list(req: Request, res: Response) {
+  list: async (req: Request, res: Response) => {
     const results = await storage.getInventory();
     res.json(results);
   },
 
-  async create(req: Request, res: Response) {
+  create: async (req: Request, res: Response) => {
     try {
       const bodySchema = api.inventory.create.input.extend({
         quantity: z.coerce.number(),
@@ -25,8 +26,7 @@ export const InventoryController = {
     }
   },
 
-  // ── UPDATE — pehle missing tha ────────────────────────────────────────────
-  async update(req: Request, res: Response) {
+  update: async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);
       const bodySchema = z.object({
@@ -45,15 +45,14 @@ export const InventoryController = {
     }
   },
 
-  // ── DELETE — pehle missing tha ────────────────────────────────────────────
-  async remove(req: Request, res: Response) {
+  remove: async (req: Request, res: Response) => {
     await storage.deleteInventory(Number(req.params.id));
     res.status(204).send();
   },
 };
 
 export const TransactionsController = {
-  async list(req: Request, res: Response) {
+  list: async (req: Request, res: Response) => {
     const branchId = req.query.branchId
       ? Number(req.query.branchId)
       : undefined;
@@ -61,7 +60,7 @@ export const TransactionsController = {
     res.json(results);
   },
 
-  async create(req: Request, res: Response) {
+  create: async (req: Request, res: Response) => {
     try {
       const bodySchema = api.transactions.create.input.extend({
         amount: z.coerce.number(),
@@ -78,41 +77,149 @@ export const TransactionsController = {
     }
   },
 
-  async remove(req: Request, res: Response) {
+  remove: async (req: Request, res: Response) => {
     await storage.deleteTransaction(Number(req.params.id));
     res.status(204).send();
   },
 };
 
 export const CommunicationsController = {
-  async list(req: Request, res: Response) {
+  list: async (req: Request, res: Response) => {
     const results = await storage.getCommunications();
     res.json(results);
   },
 
-  async send(req: Request, res: Response) {
+  send: async (req: Request, res: Response) => {
     try {
       const input = api.communications.send.input.parse(req.body);
+      const results: { recipient: string; success: boolean; error?: string }[] =
+        [];
 
       if (input.recipientType === "Bulk" && input.courseId) {
-        const students = await storage.getCourseStudents(input.courseId);
+        // ── Bulk: course ke saare students ko bhejo ───────────────────────────
+        const courseStudents = await storage.getCourseStudents(input.courseId);
         console.log(
-          `[Bulk] Sending ${input.type} to ${students.length} students in course ${input.courseId}`,
+          `[Comm] Bulk ${input.type} to ${courseStudents.length} students in course ${input.courseId}`,
         );
-      } else {
-        console.log(
-          `[Single] Sending ${input.type} to ${input.recipientType} ${input.recipientId}`,
-        );
+
+        for (const { student } of courseStudents) {
+          // Target decide karo — Email ya Phone
+          let to = "";
+          if (input.type === "Email") {
+            to = student.email || "";
+          } else {
+            to = student.phone || "";
+          }
+
+          if (!to) {
+            results.push({
+              recipient: student.name,
+              success: false,
+              error: "No contact info",
+            });
+            continue;
+          }
+
+          const result = await sendMessage({
+            type: input.type as "Email" | "SMS" | "WhatsApp",
+            to,
+            subject: input.subject || undefined,
+            content: input.content,
+          });
+          results.push({ recipient: student.name, ...result });
+        }
+      } else if (input.recipientType === "Student" && input.recipientId) {
+        // ── Single Student ────────────────────────────────────────────────────
+        const student = await storage.getStudent(input.recipientId);
+        if (!student)
+          return res.status(404).json({ message: "Student not found" });
+
+        const to =
+          input.type === "Email" ? student.email || "" : student.phone || "";
+        if (!to)
+          return res
+            .status(400)
+            .json({
+              message: `Student has no ${input.type === "Email" ? "email" : "phone"} saved`,
+            });
+
+        const result = await sendMessage({
+          type: input.type as "Email" | "SMS" | "WhatsApp",
+          to,
+          subject: input.subject || undefined,
+          content: input.content,
+        });
+        results.push({ recipient: student.name, ...result });
+      } else if (input.recipientType === "Parent" && input.recipientId) {
+        // ── Parent ────────────────────────────────────────────────────────────
+        const student = await storage.getStudent(input.recipientId);
+        if (!student)
+          return res.status(404).json({ message: "Student not found" });
+
+        // Parent ka contact
+        const to =
+          input.type === "Email"
+            ? student.email || "" // parent email nahi hai toh student email use karo
+            : student.parentPhone || "";
+
+        if (!to)
+          return res
+            .status(400)
+            .json({ message: "Parent has no contact info saved" });
+
+        const result = await sendMessage({
+          type: input.type as "Email" | "SMS" | "WhatsApp",
+          to,
+          subject: input.subject || undefined,
+          content: input.content,
+        });
+        results.push({ recipient: student.parentName || "Parent", ...result });
+      } else if (input.recipientType === "Teacher" && input.recipientId) {
+        // ── Teacher ───────────────────────────────────────────────────────────
+        const teacher = await storage.getTeacher(input.recipientId);
+        if (!teacher)
+          return res.status(404).json({ message: "Teacher not found" });
+
+        const to =
+          input.type === "Email" ? teacher.email || "" : teacher.phone || "";
+        if (!to)
+          return res
+            .status(400)
+            .json({ message: "Teacher has no contact info saved" });
+
+        const result = await sendMessage({
+          type: input.type as "Email" | "SMS" | "WhatsApp",
+          to,
+          subject: input.subject || undefined,
+          content: input.content,
+        });
+        results.push({ recipient: teacher.name, ...result });
       }
 
-      const result = await storage.createCommunication({
+      // ── DB mein log karo ──────────────────────────────────────────────────
+      await storage.createCommunication({
         recipientId: input.recipientId || 0,
         recipientType: input.recipientType,
         type: input.type,
         subject: input.subject || null,
         content: input.content,
       });
-      res.status(201).json(result);
+
+      // ── Response ─────────────────────────────────────────────────────────
+      const successCount = results.filter((r) => r.success).length;
+      const failCount = results.filter((r) => !r.success).length;
+
+      console.log(`[Comm] Results — ${successCount} sent, ${failCount} failed`);
+
+      res.status(201).json({
+        message:
+          failCount === 0
+            ? `Message sent successfully to ${successCount} recipient(s)`
+            : `Sent: ${successCount}, Failed: ${failCount}`,
+        results,
+        successCount,
+        failCount,
+      });
     } catch (err) {
       if (err instanceof z.ZodError)
         return res.status(400).json({ message: err.errors[0].message });
@@ -122,7 +229,7 @@ export const CommunicationsController = {
 };
 
 export const DashboardController = {
-  async stats(req: Request, res: Response) {
+  stats: async (req: Request, res: Response) => {
     const { period, from, to, branchId } = req.query as Record<string, string>;
     const { from: fromDate, to: toDate } = parsePeriodToDateRange(
       period,

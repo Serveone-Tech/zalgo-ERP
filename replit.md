@@ -1,7 +1,7 @@
-# BADAM SINGH Classes — ERP System
+# ZALGO INFOTECH — ERP System
 
 ## About
-A full-stack Institute ERP Management System built for BADAM SINGH Classes by Zalgo Infotech. Covers multi-branch management, student admissions, teacher management, fees with installment tracking, academics, inventory, and communications.
+A full-stack Institute ERP Management System built for ZALGO INFOTECH by Zalgo Infotech. Covers multi-branch management, student admissions, teacher management, fees with installment tracking, academics, inventory, and communications.
 
 ## Tech Stack
 - **Frontend**: React (Vite), TypeScript, TailwindCSS, Shadcn/ui, TanStack Query, Wouter
