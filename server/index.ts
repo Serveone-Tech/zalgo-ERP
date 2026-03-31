@@ -8,6 +8,9 @@ import { loginLimiter, globalLimiter } from "./middleware/rate-limit";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { startBackupScheduler } from "./utils/backup-scheduler";
+import { backupRouter } from "./routes/backup.routes";
+import { startNotificationScheduler } from "./utils/notification-scheduler";
 
 const app = express();
 const httpServer = createServer(app);
@@ -35,17 +38,26 @@ declare module "express-session" {
 app.set("trust proxy", 1);
 
 // --- SECURITY: HTTP Headers via Helmet ---
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false,
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  }),
+);
 
-// --- SECURITY: Rate Limiting (imported from middleware/rate-limit.ts) ---
+// --- SECURITY: Rate Limiting ---
 app.use("/api", globalLimiter);
 app.use("/api/auth/login", loginLimiter);
 
-// --- Body Parsing: 2MB limit to prevent large payload attacks ---
-app.use(express.json({ limit: "2mb", verify: (req, _res, buf) => { req.rawBody = buf; } }));
+// --- Body Parsing: 2MB limit ---
+app.use(
+  express.json({
+    limit: "2mb",
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: false, limit: "2mb" }));
 
 // --- Session Store ---
@@ -54,27 +66,41 @@ const pgPool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret && isProduction) {
-  console.error("FATAL: SESSION_SECRET environment variable is not set in production!");
+  console.error(
+    "FATAL: SESSION_SECRET environment variable is not set in production!",
+  );
   process.exit(1);
 }
 
-app.use(session({
-  store: new PgSession({ pool: pgPool, tableName: "session", createTableIfMissing: true }),
-  secret: sessionSecret || "dev-only-secret-not-for-production",
-  resave: false,
-  saveUninitialized: false,
-  name: "bse.sid",
-  cookie: {
-    secure: isProduction,
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  },
-}));
+app.use(
+  session({
+    store: new PgSession({
+      pool: pgPool,
+      tableName: "session",
+      createTableIfMissing: true,
+    }),
+    secret: sessionSecret || "dev-only-secret-not-for-production",
+    resave: false,
+    saveUninitialized: false,
+    name: "bse.sid",
+    cookie: {
+      secure: isProduction,
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    },
+  }),
+);
+
+// ── Backup router — session ke BAAD register karo ────────────────────────────
+app.use("/api/backups", backupRouter);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true,
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
   });
   console.log(`${formattedTime} [${source}] ${message}`);
 }
@@ -94,7 +120,8 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      if (capturedJsonResponse)
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       log(logLine);
     }
   });
@@ -125,5 +152,7 @@ app.use((req, res, next) => {
   if (process.platform !== "win32") listenOptions.reusePort = true;
   httpServer.listen(listenOptions, () => {
     log(`serving on port ${port}`);
+    startBackupScheduler();
+    startNotificationScheduler();
   });
 })();

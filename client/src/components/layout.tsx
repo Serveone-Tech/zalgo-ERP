@@ -25,6 +25,7 @@ import {
   KeyRound,
   ChevronDown,
   User,
+  Archive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -144,6 +145,20 @@ const navigation = [
         href: "/reports",
         icon: BarChart3,
         module: "reports",
+        adminOnly: false,
+      },
+      {
+        name: "Backups",
+        href: "/backups",
+        icon: Archive,
+        module: undefined,
+        adminOnly: true,
+      },
+      {
+        name: "Notifications",
+        href: "/notifications",
+        icon: Bell,
+        module: undefined,
         adminOnly: false,
       },
     ],
