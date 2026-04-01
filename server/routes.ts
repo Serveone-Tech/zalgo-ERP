@@ -248,7 +248,7 @@ async function seedDatabase() {
     });
 
     const s1 = await storage.createStudent({
-      enrollmentNo: "BSC2026-001",
+      enrollmentNo: "ZIC2026-001",
       name: "Priya Sharma",
       email: "priya@example.com",
       phone: "9123456789",
@@ -258,7 +258,7 @@ async function seedDatabase() {
       status: "Active",
     });
     const s2 = await storage.createStudent({
-      enrollmentNo: "BSC2026-002",
+      enrollmentNo: "ZIC2026-002",
       name: "Arjun Patel",
       email: "arjun@example.com",
       phone: "9234567890",

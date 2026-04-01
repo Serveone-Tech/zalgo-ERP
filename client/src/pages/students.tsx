@@ -60,7 +60,7 @@ const STUDENT_FIELDS: FieldDef[] = [
     key: "enrollmentNo",
     label: "Enrollment No",
     required: true,
-    sample: "BSC2026-001",
+    sample: "ZIC2026-001",
   },
   { key: "email", label: "Email", sample: "priya@example.com" },
   { key: "phone", label: "Mobile", required: true, sample: "9123456789" },
@@ -119,7 +119,7 @@ export default function StudentsPage() {
               name: row.name || "",
               enrollmentNo:
                 row.enrollmentNo ||
-                `BSC-${Date.now()}-${Math.floor(Math.random() * 999)}`,
+                `ZIC-${Date.now()}-${Math.floor(Math.random() * 999)}`,
               email: row.email || "",
               phone: row.phone || "",
               parentName: row.parentName || "",
@@ -459,7 +459,7 @@ function StudentForm({
     const fd = new FormData(e.currentTarget);
     createMutation.mutate(
       {
-        enrollmentNo: `BSC${Math.floor(1000 + Math.random() * 9000)}`,
+        enrollmentNo: `ZIC${Math.floor(1000 + Math.random() * 9000)}`,
         name: fd.get("name") as string,
         email: (fd.get("email") as string) || null,
         phone: fd.get("phone") as string,

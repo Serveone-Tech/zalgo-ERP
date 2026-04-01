@@ -165,6 +165,18 @@ export default function FeesPage() {
     queryKey: ["/api/courses"],
   });
 
+  // ── Enrollments fetch karo — student ke courses ke liye ───────────────────
+  const { data: enrollments = [] } = useQuery<
+    { studentId: number; courseId: number }[]
+  >({
+    queryKey: ["/api/enrollments"],
+    queryFn: async () => {
+      const res = await fetch("/api/enrollments", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
   const overdueInstallments = installments.filter(
     (i) =>
       i.status === "pending" && i.dueDate && new Date(i.dueDate) < new Date(),
@@ -296,7 +308,7 @@ export default function FeesPage() {
                           {student ? `${student.name}` : `ID: ${fee.studentId}`}
                         </TableCell>
                         <TableCell className="font-bold text-primary">
-                          ${fee.amountPaid.toLocaleString("en-IN")}
+                          ₹{fee.amountPaid.toLocaleString("en-IN")}
                         </TableCell>
                         <TableCell>
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
@@ -401,13 +413,13 @@ export default function FeesPage() {
                             Total Fee
                           </span>
                           <span className="font-medium">
-                            ${plan.netFee.toLocaleString("en-IN")}
+                            ₹{plan.netFee.toLocaleString("en-IN")}
                           </span>
                         </div>
                         <div className="flex justify-between text-xs">
                           <span className="text-muted-foreground">Paid</span>
                           <span className="font-medium text-emerald-600">
-                            ${(plan.amountPaid ?? 0).toLocaleString("en-IN")}
+                            ₹{(plan.amountPaid ?? 0).toLocaleString("en-IN")}
                           </span>
                         </div>
                         <div className="flex justify-between text-xs">
@@ -417,10 +429,9 @@ export default function FeesPage() {
                           <span
                             className={`font-medium ${remaining > 0 ? "text-red-600" : "text-emerald-600"}`}
                           >
-                            ${remaining.toLocaleString("en-IN")}
+                            ₹{remaining.toLocaleString("en-IN")}
                           </span>
                         </div>
-                        {/* Progress bar */}
                         <div className="mt-3">
                           <div className="flex justify-between text-xs mb-1">
                             <span className="text-muted-foreground">
@@ -514,7 +525,7 @@ export default function FeesPage() {
                           #{inst.installmentNo}
                         </TableCell>
                         <TableCell className="font-semibold text-primary">
-                          ${inst.amount.toLocaleString("en-IN")}
+                          ₹{inst.amount.toLocaleString("en-IN")}
                         </TableCell>
                         <TableCell className="text-sm">
                           {inst.dueDate ? (
@@ -581,9 +592,13 @@ export default function FeesPage() {
           <RecordPaymentForm
             students={students}
             courses={courses}
+            enrollments={enrollments}
             onSuccess={() => {
               setAddFeeOpen(false);
               queryClient.invalidateQueries({ queryKey: ["/api/fees"] });
+              queryClient.invalidateQueries({
+                queryKey: ["/api/dashboard/stats"],
+              });
             }}
           />
         </DialogContent>
@@ -631,6 +646,9 @@ export default function FeesPage() {
                   queryKey: ["/api/fee-installments"],
                 });
                 queryClient.invalidateQueries({ queryKey: ["/api/fee-plans"] });
+                queryClient.invalidateQueries({
+                  queryKey: ["/api/notifications"],
+                });
               }}
             />
           )}
@@ -640,13 +658,16 @@ export default function FeesPage() {
   );
 }
 
+// ── Record Payment Form — student select hone par enrolled courses auto-fill ──
 function RecordPaymentForm({
   students,
   courses,
+  enrollments,
   onSuccess,
 }: {
   students: Student[];
   courses: Course[];
+  enrollments: { studentId: number; courseId: number }[];
   onSuccess: () => void;
 }) {
   const { toast } = useToast();
@@ -658,10 +679,33 @@ function RecordPaymentForm({
 
   const selectedStudent = students.find((s) => String(s.id) === studentId);
 
+  // ── Is student ke enrolled courses filter karo ───────────────────────────
+  const studentEnrolledCourseIds = enrollments
+    .filter((e) => e.studentId === Number(studentId))
+    .map((e) => e.courseId);
+
+  const studentCourses = courses.filter((c) =>
+    studentEnrolledCourseIds.includes(c.id),
+  );
+
+  // ── Student change hone par course reset karo ────────────────────────────
+  const handleStudentChange = (val: string) => {
+    setStudentId(val);
+    setCourseId(""); // course reset karo
+
+    // Agar sirf ek hi course hai toh auto-select karo
+    const newEnrolledIds = enrollments
+      .filter((e) => e.studentId === Number(val))
+      .map((e) => e.courseId);
+    if (newEnrolledIds.length === 1) {
+      setCourseId(String(newEnrolledIds[0]));
+    }
+  };
+
   const mut = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/fees", data),
     onSuccess: () => {
-      toast({ title: "Payment recorded" });
+      toast({ title: "Payment recorded successfully" });
       onSuccess();
     },
     onError: (e: any) =>
@@ -690,9 +734,10 @@ function RecordPaymentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+      {/* Student Select */}
       <div className="space-y-1.5">
         <Label>Student *</Label>
-        <Select value={studentId} onValueChange={setStudentId}>
+        <Select value={studentId} onValueChange={handleStudentChange}>
           <SelectTrigger data-testid="select-fee-student">
             <SelectValue placeholder="Select student..." />
           </SelectTrigger>
@@ -705,24 +750,37 @@ function RecordPaymentForm({
           </SelectContent>
         </Select>
       </div>
+
+      {/* Course Select — student ke enrolled courses */}
       <div className="space-y-1.5">
         <Label>Course *</Label>
-        <Select value={courseId} onValueChange={setCourseId}>
-          <SelectTrigger data-testid="select-fee-course">
-            <SelectValue placeholder="Select course..." />
-          </SelectTrigger>
-          <SelectContent>
-            {courses.map((c) => (
-              <SelectItem key={c.id} value={String(c.id)}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {!studentId ? (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm text-muted-foreground">
+            Pehle student select karo
+          </div>
+        ) : studentCourses.length === 0 ? (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
+            Is student ka koi enrollment nahi hai
+          </div>
+        ) : (
+          <Select value={courseId} onValueChange={setCourseId}>
+            <SelectTrigger data-testid="select-fee-course">
+              <SelectValue placeholder="Select course..." />
+            </SelectTrigger>
+            <SelectContent>
+              {studentCourses.map((c) => (
+                <SelectItem key={c.id} value={String(c.id)}>
+                  {c.name} — ₹{c.fee.toLocaleString("en-IN")}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label>Amount ($) *</Label>
+          <Label>Amount (₹) *</Label>
           <Input
             data-testid="input-fee-amount"
             type="number"
@@ -754,7 +812,7 @@ function RecordPaymentForm({
         <Button
           type="submit"
           data-testid="button-submit-payment"
-          disabled={mut.isPending}
+          disabled={mut.isPending || !studentId || !courseId}
         >
           {mut.isPending ? "Saving..." : "Record Payment"}
         </Button>
@@ -845,14 +903,14 @@ function CreateFeePlanForm({
               <SelectItem value="none">None (No course)</SelectItem>
               {courses.map((c) => (
                 <SelectItem key={c.id} value={String(c.id)}>
-                  {c.name} — ${c.fee.toLocaleString("en-IN")}
+                  {c.name} — ₹{c.fee.toLocaleString("en-IN")}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label>Total Fee ($) *</Label>
+          <Label>Total Fee (₹) *</Label>
           <Input
             data-testid="input-total-fee"
             type="number"
@@ -864,7 +922,7 @@ function CreateFeePlanForm({
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Discount ($)</Label>
+          <Label>Discount (₹)</Label>
           <Input
             data-testid="input-discount"
             type="number"
@@ -878,7 +936,7 @@ function CreateFeePlanForm({
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Net Payable Fee:</span>
             <span className="font-bold text-primary">
-              ${netFee.toLocaleString("en-IN")}
+              ₹{netFee.toLocaleString("en-IN")}
             </span>
           </div>
         </div>
@@ -926,7 +984,7 @@ function CreateFeePlanForm({
       </div>
       {paymentType === "installment" && totalFee && (
         <div className="p-3 bg-muted/40 rounded-lg text-xs text-muted-foreground">
-          Each installment: ~$
+          Each installment: ~₹
           {Math.round(netFee / Number(installmentCount)).toLocaleString(
             "en-IN",
           )}{" "}
@@ -967,9 +1025,6 @@ function PayInstallmentForm({
       apiRequest("POST", `/api/fee-installments/${installment.id}/pay`, data),
     onSuccess: () => {
       toast({ title: "Payment recorded successfully" });
-      console.log(
-        `[WhatsApp Mock] Sending payment confirmation to ${student?.parentPhone}`,
-      );
       onSuccess();
     },
     onError: (e: any) =>
@@ -997,7 +1052,7 @@ function PayInstallmentForm({
         <div className="flex justify-between">
           <span className="text-muted-foreground">Due Amount:</span>
           <span className="font-bold text-primary">
-            ${installment.amount.toLocaleString("en-IN")}
+            ₹{installment.amount.toLocaleString("en-IN")}
           </span>
         </div>
         {installment.dueDate && (
@@ -1009,7 +1064,7 @@ function PayInstallmentForm({
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label>Amount Paid ($) *</Label>
+          <Label>Amount Paid (₹) *</Label>
           <Input
             data-testid="input-installment-amount"
             type="number"

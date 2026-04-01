@@ -60,7 +60,7 @@ export const LeadsController = {
 
           if (!alreadyExists) {
             await storage.createStudent({
-              enrollmentNo: `BSC${Date.now()}-${Math.floor(Math.random() * 999)}`,
+              enrollmentNo: `ZIC${Date.now()}-${Math.floor(Math.random() * 999)}`,
               name: existingLead.studentName,
               email: null,
               phone: existingLead.phone,

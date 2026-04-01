@@ -45,10 +45,11 @@ function useTransactions(branchId?: number | null) {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
+    staleTime: 0, // ← har baar fresh data
+    refetchOnMount: true, // ← page open hone par refetch
   });
 }
 
-// ── Fees table se actual fee collections fetch karo ──────────────────────────
 function useFees() {
   return useQuery({
     queryKey: ["/api/fees"],
@@ -57,6 +58,8 @@ function useFees() {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 }
 
@@ -110,11 +113,17 @@ export default function TransactionsPage() {
     branches.find((b) => b.id === id)?.name ?? "—";
   const canDelete = user?.role === "admin";
 
-  // ── Delete confirm modal state ───────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState<{
     id: number;
     label: string;
   } | null>(null);
+
+  // ── Saari related queries invalidate karo ─────────────────────────────────
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/fees"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+  };
 
   const handleBulkImport = async (rows: Record<string, string>[]) => {
     let success = 0;
@@ -143,7 +152,7 @@ export default function TransactionsPage() {
         failed++;
       }
     }
-    queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+    invalidateAll(); // ← bulk import ke baad bhi refresh
     return { success, failed };
   };
 
@@ -159,9 +168,16 @@ export default function TransactionsPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      invalidateAll(); // ← add ke baad turant refresh
       toast({ title: "Transaction recorded successfully" });
       setIsOpen(false);
+    },
+    onError: () => {
+      toast({
+        title: "Failed to record transaction",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -174,7 +190,7 @@ export default function TransactionsPage() {
       if (!res.ok) throw new Error("Failed");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      invalidateAll(); // ← delete ke baad turant refresh
       toast({
         title: "Transaction Deleted",
         description: "Transaction has been permanently removed.",
@@ -203,8 +219,7 @@ export default function TransactionsPage() {
     });
   };
 
-  // ── Total Income = Fees table (authoritative) + Non-fee transactions ─────────
-  // Fee Collection category transactions skip karo — fees table accurate hai
+  // ── Total Income = Fees table + Non-fee transactions ─────────────────────
   const feeCollected =
     fees?.reduce((s: number, f: any) => s + f.amountPaid, 0) || 0;
 
@@ -324,9 +339,8 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* ── Summary Cards ────────────────────────────────────────────────────── */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Total Income = Fees + Other Income */}
         <div className="bg-card rounded-2xl p-5 border border-border/50 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium text-muted-foreground">
@@ -380,7 +394,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* ── Transactions Table ───────────────────────────────────────────────── */}
+      {/* Transactions Table */}
       <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center text-muted-foreground">
@@ -486,7 +500,7 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      {/* ── Delete Confirm Modal ─────────────────────────────────────────────── */}
+      {/* Delete Confirm Modal */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-card border border-border rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4 animate-in fade-in zoom-in-95 duration-200">

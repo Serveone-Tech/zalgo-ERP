@@ -44,7 +44,7 @@ export async function refreshOverdueNotifications(): Promise<void> {
 
       await storage.createNotification({
         title: "Fee Installment Overdue",
-        message: `${student.name} ka installment #${inst.installmentNo} overdue hai — ₹${pending.toLocaleString("en-IN")} pending`,
+        message: `Installment #${inst.installmentNo} for ${student.name} is overdue — ₹${pending.toLocaleString("en-IN")} is pending`,
         type: "warning",
         relatedId: inst.id,
         relatedType: "installment",
