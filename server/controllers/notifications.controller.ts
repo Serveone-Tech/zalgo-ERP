@@ -1,3 +1,4 @@
+
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { db } from "../db";
@@ -8,26 +9,21 @@ import {
   feePlans,
   courses,
 } from "@shared/schema";
-import { eq, and, lte, ne } from "drizzle-orm";
+import { eq, and, lte } from "drizzle-orm";
 
-// ── Smart notification refresh ────────────────────────────────────────────────
-// 1. Paid installments ki notifications delete karo
-// 2. Genuinely overdue (pending + past due date) ke liye nayi notifications banao
+function getAdminId(req: Request): number {
+  const s = req.session as any;
+  return s.adminId ?? s.userId;
+}
+
 export async function refreshOverdueNotifications(): Promise<void> {
   try {
-    // Step 1: Saari existing fee-overdue notifications delete karo
     await db
       .delete(notifications)
       .where(eq(notifications.relatedType, "installment"));
-
-    // Step 2: Genuinely overdue installments fetch karo
-    // (status = pending AND dueDate < today)
     const now = new Date();
     const overdueInstallments = await db
-      .select({
-        inst: feeInstallments,
-        student: students,
-      })
+      .select({ inst: feeInstallments, student: students })
       .from(feeInstallments)
       .innerJoin(students, eq(feeInstallments.studentId, students.id))
       .where(
@@ -37,11 +33,9 @@ export async function refreshOverdueNotifications(): Promise<void> {
         ),
       );
 
-    // Step 3: Har overdue installment ke liye notification banao
     for (const { inst, student } of overdueInstallments) {
       const pending = inst.amount - (inst.paidAmount ?? 0);
-      if (pending <= 0) continue; // already fully paid, skip
-
+      if (pending <= 0) continue;
       await storage.createNotification({
         title: "Fee Installment Overdue",
         message: `Installment #${inst.installmentNo} for ${student.name} is overdue — ₹${pending.toLocaleString("en-IN")} is pending`,
@@ -50,7 +44,6 @@ export async function refreshOverdueNotifications(): Promise<void> {
         relatedType: "installment",
       });
     }
-
     console.log(
       `[Notifications] Refreshed — ${overdueInstallments.length} overdue installments found`,
     );
@@ -61,7 +54,8 @@ export async function refreshOverdueNotifications(): Promise<void> {
 
 export const NotificationsController = {
   async list(req: Request, res: Response) {
-    const notifs = await storage.getNotifications();
+    const adminId = getAdminId(req);
+    const notifs = await storage.getNotifications(adminId);
     res.json(notifs);
   },
 
@@ -71,11 +65,11 @@ export const NotificationsController = {
   },
 
   async markAllRead(req: Request, res: Response) {
-    await storage.markAllNotificationsRead();
+    const adminId = getAdminId(req);
+    await storage.markAllNotificationsRead(adminId);
     res.json({ success: true });
   },
 
-  // ── DELETE single notification ─────────────────────────────────────────────
   async deleteOne(req: Request, res: Response) {
     await db
       .delete(notifications)
@@ -83,16 +77,15 @@ export const NotificationsController = {
     res.status(204).send();
   },
 
-  // ── DELETE all read notifications ──────────────────────────────────────────
   async clearRead(req: Request, res: Response) {
     await db.delete(notifications).where(eq(notifications.isRead, true));
     res.json({ success: true });
   },
 
-  // ── Manual refresh trigger (admin) ─────────────────────────────────────────
   async refresh(req: Request, res: Response) {
+    const adminId = getAdminId(req);
     await refreshOverdueNotifications();
-    const notifs = await storage.getNotifications();
+    const notifs = await storage.getNotifications(adminId);
     res.json({ success: true, count: notifs.length });
   },
 };

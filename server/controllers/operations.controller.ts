@@ -1,3 +1,4 @@
+
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { api } from "@shared/routes";
@@ -5,9 +6,15 @@ import { parsePeriodToDateRange } from "../utils/period";
 import { z } from "zod";
 import { sendMessage } from "server/utils/messaging.service";
 
+function getAdminId(req: Request): number {
+  const s = req.session as any;
+  return s.adminId ?? s.userId;
+}
+
 export const InventoryController = {
   list: async (req: Request, res: Response) => {
-    const results = await storage.getInventory();
+    const adminId = getAdminId(req);
+    const results = await storage.getInventory(adminId);
     res.json(results);
   },
 
@@ -53,10 +60,11 @@ export const InventoryController = {
 
 export const TransactionsController = {
   list: async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
     const branchId = req.query.branchId
       ? Number(req.query.branchId)
       : undefined;
-    const results = await storage.getTransactions(branchId);
+    const results = await storage.getTransactions(branchId, adminId);
     res.json(results);
   },
 
@@ -85,32 +93,24 @@ export const TransactionsController = {
 
 export const CommunicationsController = {
   list: async (req: Request, res: Response) => {
-    const results = await storage.getCommunications();
+    const adminId = getAdminId(req);
+    const results = await storage.getCommunications(adminId);
     res.json(results);
   },
 
   send: async (req: Request, res: Response) => {
     try {
+      const adminId = getAdminId(req);
       const input = api.communications.send.input.parse(req.body);
       const results: { recipient: string; success: boolean; error?: string }[] =
         [];
 
       if (input.recipientType === "Bulk" && input.courseId) {
-        // ── Bulk: course ke saare students ko bhejo ───────────────────────────
         const courseStudents = await storage.getCourseStudents(input.courseId);
-        console.log(
-          `[Comm] Bulk ${input.type} to ${courseStudents.length} students in course ${input.courseId}`,
-        );
-
         for (const { student } of courseStudents) {
-          // Target decide karo — Email ya Phone
           let to = "";
-          if (input.type === "Email") {
-            to = student.email || "";
-          } else {
-            to = student.phone || "";
-          }
-
+          if (input.type === "Email") to = student.email || "";
+          else to = student.phone || "";
           if (!to) {
             results.push({
               recipient: student.name,
@@ -119,7 +119,6 @@ export const CommunicationsController = {
             });
             continue;
           }
-
           const result = await sendMessage({
             type: input.type as "Email" | "SMS" | "WhatsApp",
             to,
@@ -129,11 +128,9 @@ export const CommunicationsController = {
           results.push({ recipient: student.name, ...result });
         }
       } else if (input.recipientType === "Student" && input.recipientId) {
-        // ── Single Student ────────────────────────────────────────────────────
         const student = await storage.getStudent(input.recipientId);
         if (!student)
           return res.status(404).json({ message: "Student not found" });
-
         const to =
           input.type === "Email" ? student.email || "" : student.phone || "";
         if (!to)
@@ -142,7 +139,6 @@ export const CommunicationsController = {
             .json({
               message: `Student has no ${input.type === "Email" ? "email" : "phone"} saved`,
             });
-
         const result = await sendMessage({
           type: input.type as "Email" | "SMS" | "WhatsApp",
           to,
@@ -151,22 +147,17 @@ export const CommunicationsController = {
         });
         results.push({ recipient: student.name, ...result });
       } else if (input.recipientType === "Parent" && input.recipientId) {
-        // ── Parent ────────────────────────────────────────────────────────────
         const student = await storage.getStudent(input.recipientId);
         if (!student)
           return res.status(404).json({ message: "Student not found" });
-
-        // Parent ka contact
         const to =
           input.type === "Email"
-            ? student.email || "" // parent email nahi hai toh student email use karo
+            ? student.email || ""
             : student.parentPhone || "";
-
         if (!to)
           return res
             .status(400)
             .json({ message: "Parent has no contact info saved" });
-
         const result = await sendMessage({
           type: input.type as "Email" | "SMS" | "WhatsApp",
           to,
@@ -175,18 +166,15 @@ export const CommunicationsController = {
         });
         results.push({ recipient: student.parentName || "Parent", ...result });
       } else if (input.recipientType === "Teacher" && input.recipientId) {
-        // ── Teacher ───────────────────────────────────────────────────────────
         const teacher = await storage.getTeacher(input.recipientId);
         if (!teacher)
           return res.status(404).json({ message: "Teacher not found" });
-
         const to =
           input.type === "Email" ? teacher.email || "" : teacher.phone || "";
         if (!to)
           return res
             .status(400)
             .json({ message: "Teacher has no contact info saved" });
-
         const result = await sendMessage({
           type: input.type as "Email" | "SMS" | "WhatsApp",
           to,
@@ -196,21 +184,17 @@ export const CommunicationsController = {
         results.push({ recipient: teacher.name, ...result });
       }
 
-      // ── DB mein log karo ──────────────────────────────────────────────────
       await storage.createCommunication({
         recipientId: input.recipientId || 0,
         recipientType: input.recipientType,
         type: input.type,
         subject: input.subject || null,
         content: input.content,
-      });
+        adminId,
+      } as any);
 
-      // ── Response ─────────────────────────────────────────────────────────
       const successCount = results.filter((r) => r.success).length;
       const failCount = results.filter((r) => !r.success).length;
-
-      console.log(`[Comm] Results — ${successCount} sent, ${failCount} failed`);
-
       res.status(201).json({
         message:
           failCount === 0
@@ -230,6 +214,7 @@ export const CommunicationsController = {
 
 export const DashboardController = {
   stats: async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
     const { period, from, to, branchId } = req.query as Record<string, string>;
     const { from: fromDate, to: toDate } = parsePeriodToDateRange(
       period,
@@ -241,6 +226,7 @@ export const DashboardController = {
       from: fromDate,
       to: toDate,
       branchId: branchFilter,
+      adminId,
     });
     res.json(stats);
   },

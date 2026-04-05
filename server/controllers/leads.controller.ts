@@ -1,11 +1,18 @@
+
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { api } from "@shared/routes";
 import { parsePeriodToDateRange } from "../utils/period";
 import { z } from "zod";
 
+function getAdminId(req: Request): number {
+  const s = req.session as any;
+  return s.adminId ?? s.userId;
+}
+
 export const LeadsController = {
   async list(req: Request, res: Response) {
+    const adminId = getAdminId(req);
     const { period, from, to, branchId } = req.query as Record<string, string>;
     const { from: fromDate, to: toDate } = parsePeriodToDateRange(
       period,
@@ -16,6 +23,7 @@ export const LeadsController = {
       branchId: branchId ? Number(branchId) : undefined,
       from: fromDate,
       to: toDate,
+      adminId,
     });
     res.json(leads);
   },
@@ -48,34 +56,28 @@ export const LeadsController = {
       const input = api.leads.update.input.parse(req.body);
       const leadId = Number(req.params.id);
 
-      // ── Auto-create student when lead is marked Converted ──────────────────
       if (input.status === "Converted") {
         const existingLead = await storage.getLead(leadId);
-
         if (existingLead && existingLead.status !== "Converted") {
           const existingStudents = await storage.getStudents({});
           const alreadyExists = existingStudents.some(
             (s) => s.phone === existingLead.phone,
           );
-
           if (!alreadyExists) {
             await storage.createStudent({
-              enrollmentNo: `ZIC${Date.now()}-${Math.floor(Math.random() * 999)}`,
+              enrollmentNo: `ENR-${Date.now()}`,
               name: existingLead.studentName,
-              email: null,
               phone: existingLead.phone,
-              parentName: existingLead.parentName ?? "",
-              parentPhone: existingLead.parentPhone ?? "",
-              address: existingLead.address ?? null,
-              profilePicture: null,
+              parentName: existingLead.parentName || "",
+              parentPhone: existingLead.parentPhone || existingLead.phone,
+              address: existingLead.address || "",
               status: "Active",
-              branchId: existingLead.branchId ?? null,
-              courseInterested: existingLead.courseInterested ?? null, // ✅ lead ka course bhi copy hoga
-            });
+              branchId: existingLead.branchId,
+              courseInterested: existingLead.courseInterested,
+            } as any);
           }
         }
       }
-      // ──────────────────────────────────────────────────────────────────────
 
       const lead = await storage.updateLead(leadId, input);
       res.json(lead);

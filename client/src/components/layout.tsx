@@ -26,6 +26,8 @@ import {
   ChevronDown,
   User,
   Archive,
+  Zap,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -52,10 +54,10 @@ import {
 import { useAuth } from "@/contexts/auth";
 import { useBranch } from "@/contexts/branch";
 import { ChangePasswordDialog } from "@/components/password-dialogs";
+import { SubscriptionBanner } from "@/components/subscription-banner";
 import type { Notification, Branch } from "@shared/schema";
 import { useEffect } from "react";
 
-// module: undefined = always visible (admin items, dashboard)
 const navigation = [
   {
     group: "Overview",
@@ -90,13 +92,6 @@ const navigation = [
         icon: BookOpen,
         module: "courses",
       },
-      // {
-      //   name: "Assignments",
-      //   href: "/assignments",
-      //   icon: ClipboardList,
-      //   module: "assignments",
-      // },
-      // { name: "Exams", href: "/exams", icon: FileText, module: "exams" },
     ],
   },
   {
@@ -134,6 +129,13 @@ const navigation = [
         adminOnly: false,
       },
       {
+        name: "Automation",
+        href: "/automation",
+        icon: Zap,
+        module: "communications",
+        adminOnly: false,
+      },
+      {
         name: "ID Cards",
         href: "/idcards",
         icon: IdCard,
@@ -161,6 +163,13 @@ const navigation = [
         module: undefined,
         adminOnly: false,
       },
+      {
+        name: "Report Cards",
+        href: "/report-card",
+        icon: CreditCard,
+        module: "report-cards",
+        adminOnly: false,
+      },
     ],
   },
   {
@@ -180,14 +189,39 @@ const navigation = [
         module: undefined,
         adminOnly: true,
       },
+      {
+        name: "Subscription Plans",
+        href: "/pricing",
+        icon: CreditCard,
+        module: undefined,
+        adminOnly: true,
+      },
     ],
   },
 ];
 
+// ── Organization logo hook ────────────────────────────────────────────────────
+function useOrganization() {
+  return useQuery({
+    queryKey: ["/api/auth/organization"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/organization", {
+        credentials: "include",
+      });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+}
+
+// ── Sidebar Content ───────────────────────────────────────────────────────────
 function SidebarContent({ onClose }: { onClose?: () => void }) {
   const [location] = useLocation();
   const { user, logout, canAccess } = useAuth();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const { data: org } = useOrganization();
+
   const initials =
     user?.name
       ?.split(" ")
@@ -208,24 +242,36 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         style={{ borderBottom: "1px solid hsl(220 22% 20%)" }}
       >
         <div className="flex items-center gap-3 min-w-0">
-          <img
-            src="/logo.png"
-            alt="ZALGO INFOTECH"
-            className="h-9 w-auto object-contain flex-shrink-0"
-            style={{ filter: "brightness(0) invert(1)" }}
-          />
+          {/* Organization logo or fallback to default */}
+          {org?.logo ? (
+            <img
+              src={org.logo}
+              alt={org.name}
+              className="h-9 w-9 object-contain rounded-lg flex-shrink-0 bg-white/10"
+            />
+          ) : (
+            <div
+              className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: "hsl(180 78% 20%)" }}
+            >
+              <Building2
+                className="w-5 h-5"
+                style={{ color: "hsl(180 78% 65%)" }}
+              />
+            </div>
+          )}
           <div className="min-w-0">
             <p
               className="text-xs font-bold leading-tight truncate"
               style={{ color: "hsl(210 30% 92%)" }}
             >
-              ZALGO INFOTECH
+              {org?.name || user?.name || "My Institute"}
             </p>
             <p
-              className="text-[10px] leading-tight truncate"
+              className="text-[10px] leading-tight truncate capitalize"
               style={{ color: "hsl(210 20% 65%)" }}
             >
-              Classes
+              {org?.type || "Institute"}
             </p>
           </div>
         </div>
@@ -260,7 +306,6 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           if (visibleItems.length === 0) return null;
           return (
             <div key={section.group} className="mb-1">
-              {/* Group label */}
               <p
                 className="px-3 pt-3 pb-1 text-[9px] font-bold uppercase tracking-[0.12em]"
                 style={{ color: "hsl(210 20% 45%)" }}
@@ -281,13 +326,9 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                             color: "#ffffff",
                             boxShadow: "0 2px 12px hsl(180 78% 29% / 40%)",
                           }
-                        : {
-                            color: "hsl(210 25% 78%)",
-                          }
+                        : { color: "hsl(210 25% 78%)" }
                     }
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 transition-all duration-150 text-sm font-medium group ${
-                      isActive ? "" : "hover:bg-white/8"
-                    }`}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 transition-all duration-150 text-sm font-medium group ${isActive ? "" : "hover:bg-white/8"}`}
                     onMouseEnter={(e) => {
                       if (!isActive)
                         e.currentTarget.style.backgroundColor =
@@ -388,6 +429,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   );
 }
 
+// ── Notification Bell ─────────────────────────────────────────────────────────
 function NotificationBell() {
   const [open, setOpen] = useState(false);
   const { data: notifications = [] } = useQuery<Notification[]>({
@@ -489,10 +531,10 @@ function NotificationBell() {
   );
 }
 
+// ── Branch Selector ───────────────────────────────────────────────────────────
 function BranchSelector() {
   const { branches, selectedBranchId, setSelectedBranchId } = useBranch();
   if (branches.length === 0) return null;
-
   return (
     <Select
       value={selectedBranchId ? String(selectedBranchId) : "all"}
@@ -517,6 +559,7 @@ function BranchSelector() {
   );
 }
 
+// ── User Dropdown ─────────────────────────────────────────────────────────────
 function UserDropdown() {
   const { user, logout } = useAuth();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
@@ -555,9 +598,7 @@ function UserDropdown() {
         <DropdownMenuContent align="end" className="w-52 rounded-xl shadow-lg">
           <div className="px-3 py-2 border-b">
             <p className="text-sm font-semibold">{user?.name}</p>
-            <p className="text-xs text-muted-foreground capitalize">
-              {user?.email}
-            </p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
           </div>
           <DropdownMenuItem
             className="gap-2 cursor-pointer rounded-lg mx-1 my-1"
@@ -578,7 +619,6 @@ function UserDropdown() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
       <ChangePasswordDialog
         open={changePasswordOpen}
         onOpenChange={setChangePasswordOpen}
@@ -587,6 +627,7 @@ function UserDropdown() {
   );
 }
 
+// ── App Layout ────────────────────────────────────────────────────────────────
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [location] = useLocation();
@@ -640,13 +681,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           >
             <Menu className="w-5 h-5" />
           </button>
-
           <div className="flex-1 min-w-0">
             <h2 className="text-base font-semibold text-foreground truncate hidden sm:block">
               {currentPage}
             </h2>
           </div>
-
           <div className="flex items-center gap-2 md:gap-3">
             <BranchSelector />
             <NotificationBell />
@@ -654,6 +693,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <UserDropdown />
           </div>
         </header>
+
+        {/* Subscription expiry banner */}
+        <SubscriptionBanner />
 
         <main className="flex-1 overflow-auto p-4 md:p-6">
           <div className="max-w-7xl mx-auto w-full">{children}</div>

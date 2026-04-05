@@ -11,6 +11,7 @@ import { createServer } from "http";
 import { startBackupScheduler } from "./utils/backup-scheduler";
 import { backupRouter } from "./routes/backup.routes";
 import { startNotificationScheduler } from "./utils/notification-scheduler";
+import { startExpiryWarningScheduler } from "./utils/expiry-warning.scheduler";
 
 const app = express();
 const httpServer = createServer(app);
@@ -26,6 +27,7 @@ declare module "http" {
 declare module "express-session" {
   interface SessionData {
     userId?: number;
+    adminId?: number;
     userRole?: string;
     userBranchId?: number | null;
     userName?: string;
@@ -49,16 +51,16 @@ app.use(
 app.use("/api", globalLimiter);
 app.use("/api/auth/login", loginLimiter);
 
-// --- Body Parsing: 2MB limit ---
+// --- Body Parsing: 5MB limit (increased for logo base64 uploads) ---
 app.use(
   express.json({
-    limit: "2mb",
+    limit: "5mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
-app.use(express.urlencoded({ extended: false, limit: "2mb" }));
+app.use(express.urlencoded({ extended: false, limit: "5mb" }));
 
 // --- Session Store ---
 const PgSession = connectPgSimple(session);
@@ -92,7 +94,7 @@ app.use(
   }),
 );
 
-// ── Backup router — session ke BAAD register karo ────────────────────────────
+// ── Backup router — session ke baad register karo ────────────────────────────
 app.use("/api/backups", backupRouter);
 
 export function log(message: string, source = "express") {
@@ -150,9 +152,11 @@ app.use((req, res, next) => {
   const host = process.platform === "win32" ? "127.0.0.1" : "0.0.0.0";
   const listenOptions: Record<string, any> = { port, host };
   if (process.platform !== "win32") listenOptions.reusePort = true;
+
   httpServer.listen(listenOptions, () => {
     log(`serving on port ${port}`);
     startBackupScheduler();
     startNotificationScheduler();
+    startExpiryWarningScheduler(); // ← NEW: warns users 7/3/1 days before expiry
   });
 })();

@@ -21,7 +21,9 @@ import {
   feeInstallmentsRouter,
 } from "./routes/fee-plans.routes";
 import notificationsRouter from "./routes/notifications.routes";
-
+import reportCardRouter from "./routes/report-card.routes";
+import plansRouter from "./routes/plans.routes";
+import automationRouter from "./routes/automation.routes";
 import { z } from "zod";
 import { api } from "@shared/routes";
 import { Router } from "express";
@@ -67,12 +69,10 @@ enrollmentsRouter.post("/", requireAuth, async (req, res) => {
     res.status(201).json(enrollment);
   } catch (err) {
     if (err instanceof z.ZodError)
-      return res
-        .status(400)
-        .json({
-          message: err.errors[0].message,
-          field: err.errors[0].path.join("."),
-        });
+      return res.status(400).json({
+        message: err.errors[0].message,
+        field: err.errors[0].path.join("."),
+      });
     throw err;
   }
 });
@@ -85,7 +85,7 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express,
 ): Promise<Server> {
-  // Auth (public endpoints: login/logout/me)
+  // Auth (public endpoints: login/logout/me/register)
   app.use("/api/auth", authRouter);
   app.use("/api/branches", branchesRouter);
   app.use("/api/leads", leadsRouter);
@@ -104,267 +104,164 @@ export async function registerRoutes(
   app.use("/api/dashboard", dashboardRouter);
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/admin", adminRouter);
+  app.use("/api/report-card", reportCardRouter);
+  app.use("/api/plans", plansRouter);
+  app.use("/api/automation", automationRouter);
 
   await seedDatabase().catch(console.error);
 
   return httpServer;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SEED
+// ─────────────────────────────────────────────────────────────────────────────
 async function seedDatabase() {
-  // Seed admin user if none exist
-  const existingUsers = await storage.getUsers();
-  if (existingUsers.length === 0) {
-    const passwordHash = await bcrypt.hash("admin123", 10);
-    await storage.createUser({
-      name: "Admin",
-      email: "admin@badamsingh.com",
-      passwordHash,
-      role: "admin",
-      permissions: [
-        "leads",
-        "students",
-        "teachers",
-        "courses",
-        "fees",
-        "assignments",
-        "exams",
-        "inventory",
-        "transactions",
-        "communications",
-        "reports",
-      ],
-      branchId: null,
-      isActive: true,
-    });
-    console.log("[seed] Admin user created: admin@badamsingh.com / admin123");
-  }
+  const existing = await storage.getUserByEmail("admin@badamsingh.com");
+  if (existing) return; // already seeded
 
-  // Seed branches if none exist
-  const existingBranches = await storage.getBranches();
-  if (existingBranches.length === 0) {
-    await storage.createBranch({
-      name: "Main Branch",
-      city: "Delhi",
-      address: "Model Town, Delhi",
-      phone: "011-12345678",
-      email: "main@badamsingh.com",
-      isActive: true,
-    });
-    await storage.createBranch({
-      name: "South Delhi Branch",
-      city: "Delhi",
-      address: "Lajpat Nagar, South Delhi",
-      phone: "011-87654321",
-      email: "south@badamsingh.com",
-      isActive: true,
-    });
-    console.log("[seed] Branches created");
-  }
+  const passwordHash = await bcrypt.hash("admin123", 10);
+  const admin = await storage.createUser({
+    name: "Admin",
+    email: "admin@badamsingh.com",
+    passwordHash,
+    role: "admin",
+    permissions: [],
+    branchId: null,
+    isActive: true,
+  } as any);
 
-  // Seed fee plans if none exist (independently of courses)
-  const existingFeePlans = await storage.getFeePlans();
-  if (existingFeePlans.length === 0) {
-    const allStudents = await storage.getStudents();
-    const allCourses = await storage.getCourses();
-    if (allStudents.length > 0 && allCourses.length > 0) {
-      const s1 = allStudents[0];
-      const c1 = allCourses[0];
-      const plan = await storage.createFeePlan({
-        studentId: s1.id,
-        courseId: c1.id,
-        totalFee: 150000,
-        discount: 10000,
-        netFee: 140000,
-        amountPaid: 30000,
-        paymentType: "installment",
-        installmentCount: 3,
-        startDate: new Date(),
-        nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      });
-      for (let i = 1; i <= 3; i++) {
-        const dueDate = new Date();
-        dueDate.setMonth(dueDate.getMonth() + (i - 2)); // First due last month (overdue), second current, third next month
-        await storage.createFeeInstallment({
-          feePlanId: plan.id,
-          studentId: s1.id,
-          installmentNo: i,
-          amount: 30000,
-          dueDate,
-          status: i === 1 ? "paid" : "pending",
-          paidAmount: i === 1 ? 30000 : 0,
-          paidDate:
-            i === 1 ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) : null,
-        });
-      }
-      await storage.createNotification({
-        title: "Installment Overdue",
-        message: `${s1.name} has an overdue installment of $30,000`,
-        type: "warning",
-        relatedId: s1.id,
-        relatedType: "student",
-      });
-      console.log("[seed] Fee plans and installments created");
-    }
-  }
+  const b1 = await storage.createBranch({
+    name: "Main Branch",
+    city: "Delhi",
+    address: "123 Main St",
+    phone: "9999999999",
+    email: "main@zalgo.com",
+    isActive: true,
+  });
+  const b2 = await storage.createBranch({
+    name: "South Delhi Branch",
+    city: "South Delhi",
+    address: "456 South Ave",
+    phone: "8888888888",
+    email: "south@zalgo.com",
+    isActive: true,
+  });
 
-  // Seed courses if none exist
-  const existingCourses = await storage.getCourses();
-  if (existingCourses.length === 0) {
-    const c1 = await storage.createCourse({
-      name: "JEE Main & Advanced",
-      description: "2 Year Classroom Program for Class 11",
-      duration: "24 Months",
-      fee: 150000,
-      status: "Active",
-    });
-    const c2 = await storage.createCourse({
-      name: "NEET UG",
-      description: "1 Year Dropper Batch",
-      duration: "12 Months",
-      fee: 90000,
-      status: "Active",
-    });
-    const c3 = await storage.createCourse({
-      name: "Foundation (Class 9-10)",
-      description: "Science & Maths Foundation",
-      duration: "12 Months",
-      fee: 60000,
-      status: "Active",
-    });
+  const c1 = await storage.createCourse({
+    name: "JEE Main & Advanced",
+    description: "Complete JEE preparation",
+    duration: "2 Years",
+    fee: 150000,
+    status: "Active",
+    branchId: b1.id,
+  });
+  const c2 = await storage.createCourse({
+    name: "NEET UG",
+    description: "Complete NEET preparation",
+    duration: "2 Years",
+    fee: 120000,
+    status: "Active",
+    branchId: b1.id,
+  });
 
-    await storage.createLead({
-      studentName: "Rahul Kumar",
-      parentName: "Sanjay Kumar",
-      phone: "9876543210",
-      courseInterested: "JEE Main & Advanced",
-      status: "New",
-    });
-    await storage.createLead({
-      studentName: "Anjali Singh",
-      parentName: "Rakesh Singh",
-      phone: "9123498765",
-      courseInterested: "NEET UG",
-      status: "Follow-up",
-    });
+  const s1 = await storage.createStudent({
+    enrollmentNo: "ENR-2026-001",
+    name: "Priya Sharma",
+    email: "priya@example.com",
+    phone: "9876543210",
+    parentName: "Rajesh Sharma",
+    parentPhone: "9876543211",
+    address: "Delhi",
+    status: "Active",
+    branchId: b1.id,
+  });
+  const s2 = await storage.createStudent({
+    enrollmentNo: "ENR-2026-002",
+    name: "Rahul Verma",
+    email: "rahul@example.com",
+    phone: "9876543212",
+    parentName: "Suresh Verma",
+    parentPhone: "9876543213",
+    address: "Noida",
+    status: "Active",
+    branchId: b2.id,
+  });
 
-    const s1 = await storage.createStudent({
-      enrollmentNo: "ZIC2026-001",
-      name: "Priya Sharma",
-      email: "priya@example.com",
-      phone: "9123456789",
-      parentName: "Ramesh Sharma",
-      parentPhone: "9988776655",
-      address: "123, Model Town, Delhi",
-      status: "Active",
-    });
-    const s2 = await storage.createStudent({
-      enrollmentNo: "ZIC2026-002",
-      name: "Arjun Patel",
-      email: "arjun@example.com",
-      phone: "9234567890",
-      parentName: "Suresh Patel",
-      parentPhone: "9876543211",
-      address: "45, Connaught Place, Delhi",
-      status: "Active",
-    });
+  await storage.createFee({
+    studentId: s1.id,
+    courseId: c1.id,
+    amountPaid: 50000,
+    paymentMode: "Online",
+    receiptNo: "RCP-2026-001",
+    status: "Paid",
+  });
+  await storage.createFee({
+    studentId: s2.id,
+    courseId: c2.id,
+    amountPaid: 30000,
+    paymentMode: "Cash",
+    receiptNo: "RCP-2026-002",
+    status: "Paid",
+  });
 
-    await storage.createTeacher({
-      name: "Anil Desai",
-      email: "anil.desai@badamsingh.com",
-      phone: "9876123450",
-      subject: "Physics",
-      qualification: "M.Sc Physics, B.Ed",
-      status: "Active",
-    });
-    await storage.createTeacher({
-      name: "Sunita Verma",
-      email: "sunita.verma@badamsingh.com",
-      phone: "9765432109",
-      subject: "Chemistry",
-      qualification: "M.Sc Chemistry",
-      status: "Active",
-    });
-
-    await storage.createEnrollment({ studentId: s1.id, courseId: c1.id });
-    await storage.createEnrollment({ studentId: s2.id, courseId: c2.id });
-
-    await storage.createFee({
+  const plan = await storage.createFeePlan({
+    studentId: s1.id,
+    courseId: c1.id,
+    totalFee: 150000,
+    discount: 10000,
+    netFee: 140000,
+    amountPaid: 50000,
+    paymentType: "installment",
+    installmentCount: 3,
+    startDate: new Date(),
+    nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  });
+  for (let i = 1; i <= 3; i++) {
+    const dueDate = new Date();
+    dueDate.setMonth(dueDate.getMonth() + (i - 1));
+    await storage.createFeeInstallment({
+      feePlanId: plan.id,
       studentId: s1.id,
-      courseId: c1.id,
-      amountPaid: 50000,
-      paymentMode: "Online",
-      receiptNo: "RCP-2026-001",
-      status: "Paid",
+      installmentNo: i,
+      amount: Math.round(90000 / 3),
+      dueDate,
+      status: i === 1 ? "paid" : "pending",
+      paidAmount: i === 1 ? 30000 : 0,
+      paidDate: i === 1 ? new Date() : null,
     });
-    await storage.createFee({
-      studentId: s2.id,
-      courseId: c2.id,
-      amountPaid: 30000,
-      paymentMode: "Cash",
-      receiptNo: "RCP-2026-002",
-      status: "Paid",
-    });
-
-    // Seed a fee plan with installments
-    const plan = await storage.createFeePlan({
-      studentId: s1.id,
-      courseId: c1.id,
-      totalFee: 150000,
-      discount: 10000,
-      netFee: 140000,
-      amountPaid: 50000,
-      paymentType: "installment",
-      installmentCount: 3,
-      startDate: new Date(),
-      nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    });
-    for (let i = 1; i <= 3; i++) {
-      const dueDate = new Date();
-      dueDate.setMonth(dueDate.getMonth() + (i - 1));
-      await storage.createFeeInstallment({
-        feePlanId: plan.id,
-        studentId: s1.id,
-        installmentNo: i,
-        amount: Math.round(90000 / 3),
-        dueDate,
-        status: i === 1 ? "paid" : "pending",
-        paidAmount: i === 1 ? 30000 : 0,
-        paidDate: i === 1 ? new Date() : null,
-      });
-    }
-
-    await storage.createTransaction({
-      type: "Income",
-      category: "Fee Collection",
-      amount: 50000,
-      description: "Priya Sharma Fee",
-    });
-    await storage.createTransaction({
-      type: "Expense",
-      category: "Salary",
-      amount: 15000,
-      description: "Teacher Salary Jan",
-    });
-    await storage.createInventory({
-      itemName: "Whiteboard Markers",
-      category: "Stationery",
-      quantity: 50,
-    });
-    await storage.createInventory({
-      itemName: "Projector",
-      category: "Electronics",
-      quantity: 2,
-    });
-
-    // Create overdue notification
-    await storage.createNotification({
-      title: "Fee Overdue",
-      message: "Priya Sharma has an overdue installment of $30,000",
-      type: "warning",
-      relatedId: s1.id,
-      relatedType: "student",
-    });
-
-    console.log("[seed] Sample data seeded");
   }
+
+  await storage.createTransaction({
+    type: "Income",
+    category: "Fee Collection",
+    amount: 50000,
+    description: "Priya Sharma Fee",
+  });
+  await storage.createTransaction({
+    type: "Expense",
+    category: "Salary",
+    amount: 15000,
+    description: "Teacher Salary Jan",
+  });
+  await storage.createInventory({
+    itemName: "Whiteboard Markers",
+    category: "Stationery",
+    quantity: 50,
+  });
+  await storage.createInventory({
+    itemName: "Projector",
+    category: "Electronics",
+    quantity: 2,
+  });
+
+  await storage.createNotification({
+    title: "Fee Overdue",
+    message: "Priya Sharma has an overdue installment of Rs 30,000",
+    type: "warning",
+    relatedId: s1.id,
+    relatedType: "student",
+  });
+
+  console.log("[seed] Sample data seeded");
 }

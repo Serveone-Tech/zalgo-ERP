@@ -1,11 +1,20 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// server/controllers/students.controller.ts — REPLACE
+// ─────────────────────────────────────────────────────────────────────────────
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { api } from "@shared/routes";
 import { parsePeriodToDateRange } from "../utils/period";
 import { z } from "zod";
 
+function getAdminId(req: Request): number {
+  const s = req.session as any;
+  return s.adminId ?? s.userId;
+}
+
 export const StudentsController = {
   async list(req: Request, res: Response) {
+    const adminId = getAdminId(req);
     const { period, from, to, branchId } = req.query as Record<string, string>;
     const { from: fromDate, to: toDate } = parsePeriodToDateRange(
       period,
@@ -16,6 +25,7 @@ export const StudentsController = {
       branchId: branchId ? Number(branchId) : undefined,
       from: fromDate,
       to: toDate,
+      adminId,
     });
     res.json(students);
   },
@@ -65,3 +75,4 @@ export const StudentsController = {
     res.status(204).send();
   },
 };
+

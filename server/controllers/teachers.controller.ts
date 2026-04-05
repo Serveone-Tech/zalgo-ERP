@@ -1,17 +1,29 @@
+
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { api } from "@shared/routes";
 import { parsePeriodToDateRange } from "../utils/period";
 import { z } from "zod";
 
+function getAdminId(req: Request): number {
+  const s = req.session as any;
+  return s.adminId ?? s.userId;
+}
+
 export const TeachersController = {
   async list(req: Request, res: Response) {
+    const adminId = getAdminId(req);
     const { period, from, to, branchId } = req.query as Record<string, string>;
-    const { from: fromDate, to: toDate } = parsePeriodToDateRange(period, from, to);
+    const { from: fromDate, to: toDate } = parsePeriodToDateRange(
+      period,
+      from,
+      to,
+    );
     const teachers = await storage.getTeachers({
       branchId: branchId ? Number(branchId) : undefined,
       from: fromDate,
       to: toDate,
+      adminId,
     });
     res.json(teachers);
   },
@@ -29,7 +41,12 @@ export const TeachersController = {
       res.status(201).json(teacher);
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+        return res
+          .status(400)
+          .json({
+            message: err.errors[0].message,
+            field: err.errors[0].path.join("."),
+          });
       throw err;
     }
   },
@@ -41,7 +58,12 @@ export const TeachersController = {
       res.json(teacher);
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+        return res
+          .status(400)
+          .json({
+            message: err.errors[0].message,
+            field: err.errors[0].path.join("."),
+          });
       throw err;
     }
   },

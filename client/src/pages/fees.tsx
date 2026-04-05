@@ -131,6 +131,8 @@ export default function FeesPage() {
       if (!res.ok) throw new Error("Failed to fetch fees");
       return res.json();
     },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const { data: feePlans = [], isLoading: plansLoading } = useQuery<FeePlan[]>({
@@ -143,6 +145,8 @@ export default function FeesPage() {
       if (!res.ok) throw new Error("Failed to fetch fee plans");
       return res.json();
     },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const { data: installments = [], isLoading: instLoading } = useQuery<
@@ -157,12 +161,32 @@ export default function FeesPage() {
       if (!res.ok) throw new Error("Failed to fetch installments");
       return res.json();
     },
+    staleTime: 0,
+    refetchOnMount: true,
   });
+
+  // ── Students — staleTime 0 taaki naye students turant dikhein ─────────────
   const { data: students = [] } = useQuery<Student[]>({
     queryKey: ["/api/students"],
+    queryFn: async () => {
+      const res = await fetch("/api/students", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch students");
+      return res.json();
+    },
+    staleTime: 0,
+    refetchOnMount: true,
   });
+
+  // ── Courses — staleTime 0 taaki naye courses turant dikhein ──────────────
   const { data: courses = [] } = useQuery<Course[]>({
     queryKey: ["/api/courses"],
+    queryFn: async () => {
+      const res = await fetch("/api/courses", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch courses");
+      return res.json();
+    },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // ── Enrollments fetch karo — student ke courses ke liye ───────────────────
@@ -175,6 +199,8 @@ export default function FeesPage() {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const overdueInstallments = installments.filter(

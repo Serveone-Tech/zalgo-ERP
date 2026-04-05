@@ -3,9 +3,15 @@ import { storage } from "../storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 
+function getAdminId(req: Request): number {
+  const s = req.session as any;
+  return s.adminId ?? s.userId;
+}
+
 export const AssignmentsController = {
   async list(req: Request, res: Response) {
-    const results = await storage.getAssignments();
+    const adminId = getAdminId(req);
+    const results = await storage.getAssignments(adminId);
     res.json(results);
   },
 
@@ -20,7 +26,12 @@ export const AssignmentsController = {
       res.status(201).json(result);
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+        return res
+          .status(400)
+          .json({
+            message: err.errors[0].message,
+            field: err.errors[0].path.join("."),
+          });
       throw err;
     }
   },
@@ -28,7 +39,8 @@ export const AssignmentsController = {
 
 export const ExamsController = {
   async list(req: Request, res: Response) {
-    const results = await storage.getExams();
+    const adminId = getAdminId(req);
+    const results = await storage.getExams(adminId);
     res.json(results);
   },
 
@@ -44,7 +56,12 @@ export const ExamsController = {
       res.status(201).json(result);
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+        return res
+          .status(400)
+          .json({
+            message: err.errors[0].message,
+            field: err.errors[0].path.join("."),
+          });
       throw err;
     }
   },

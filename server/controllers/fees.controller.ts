@@ -1,11 +1,18 @@
+// server/controllers/fees.controller.ts — REPLACE
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { api } from "@shared/routes";
 import { parsePeriodToDateRange } from "../utils/period";
 import { z } from "zod";
 
+function getAdminId(req: Request): number {
+  const s = req.session as any;
+  return s.adminId ?? s.userId;
+}
+
 export const FeesController = {
   async list(req: Request, res: Response) {
+    const adminId = getAdminId(req);
     const { period, from, to, branchId } = req.query as Record<string, string>;
     const { from: fromDate, to: toDate } = parsePeriodToDateRange(
       period,
@@ -16,6 +23,7 @@ export const FeesController = {
       branchId: branchId ? Number(branchId) : undefined,
       from: fromDate,
       to: toDate,
+      adminId,
     });
     res.json(fees);
   },
@@ -29,15 +37,12 @@ export const FeesController = {
       });
       const input = bodySchema.parse(req.body);
 
-      // ── Fee record create karo ─────────────────────────────────────────────
       const fee = await storage.createFee(input);
 
-      // ── Automatically Income transaction bhi create karo ──────────────────
+      // Auto-create Income transaction
       try {
-        // Student ka naam fetch karo description ke liye
         const student = await storage.getStudent(input.studentId);
         const studentName = student?.name ?? `Student #${input.studentId}`;
-
         await storage.createTransaction({
           type: "Income",
           category: "Fee Collection",
@@ -46,13 +51,11 @@ export const FeesController = {
           branchId: input.branchId ?? student?.branchId ?? null,
         });
       } catch (txErr) {
-        // Transaction fail hone par fee ko rollback mat karo, sirf log karo
         console.error(
           "[FeesController] Auto-transaction creation failed:",
           txErr,
         );
       }
-      // ──────────────────────────────────────────────────────────────────────
 
       res.status(201).json(fee);
     } catch (err) {
