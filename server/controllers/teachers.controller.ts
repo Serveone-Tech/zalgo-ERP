@@ -36,8 +36,9 @@ export const TeachersController = {
 
   async create(req: Request, res: Response) {
     try {
+      const adminId = getAdminId(req);
       const input = api.teachers.create.input.parse(req.body);
-      const teacher = await storage.createTeacher(input);
+      const teacher = await storage.createTeacher({ ...input, adminId } as any);
       res.status(201).json(teacher);
     } catch (err) {
       if (err instanceof z.ZodError)

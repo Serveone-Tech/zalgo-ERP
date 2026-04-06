@@ -50,6 +50,7 @@ export const leads = pgTable("leads", {
   courseInterested: text("course_interested").notNull(),
   status: text("status").notNull().default("New"),
   branchId: integer("branch_id").references(() => branches.id),
+  adminId: integer("admin_id").references(() => users.id), // ← ADD
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -65,9 +66,9 @@ export const students = pgTable("students", {
   address: text("address"),
   profilePicture: text("profile_picture"),
   status: text("status").notNull().default("Active"),
-  // ── NEW: course interested field ──────────────────────────────────────────
   courseInterested: text("course_interested"),
   branchId: integer("branch_id").references(() => branches.id),
+  adminId: integer("admin_id").references(() => users.id), // ← ADD
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -81,6 +82,7 @@ export const teachers = pgTable("teachers", {
   qualification: text("qualification"),
   status: text("status").notNull().default("Active"),
   branchId: integer("branch_id").references(() => branches.id),
+  adminId: integer("admin_id").references(() => users.id), // ← ADD
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -254,16 +256,15 @@ export const notifications = pgTable("notifications", {
 });
 
 // ─── Attendance Records ───────────────────────────────────────────────────────
-
 export const attendanceRecords = pgTable("attendance_records", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id")
     .references(() => students.id)
     .notNull(),
   date: timestamp("date").notNull(),
-  lecture: text("lecture"), // PCM, Physics, Chemistry, etc.
-  status: text("status").notNull().default("absent"), // present | absent
-  callingStatus: text("calling_status"), // Informed by us | Not informed | N/A
+  lecture: text("lecture"),
+  status: text("status").notNull().default("absent"),
+  callingStatus: text("calling_status"),
   remark: text("remark"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -275,8 +276,8 @@ export const homeworkRecords = pgTable("homework_records", {
     .references(() => students.id)
     .notNull(),
   date: timestamp("date").notNull(),
-  excuseByStudent: text("excuse_by_student"), // Forgot to complete | etc.
-  callingStatus: text("calling_status"), // Informed by us | Other | N/A
+  excuseByStudent: text("excuse_by_student"),
+  callingStatus: text("calling_status"),
   remark: text("remark"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -294,7 +295,7 @@ export const testResults = pgTable("test_results", {
   totalMarks: integer("total_marks").notNull(),
   rank: integer("rank"),
   studentsAppeared: integer("students_appeared"),
-  averageMarks: text("average_marks"), // decimal as text
+  averageMarks: text("average_marks"),
   highestMarks: integer("highest_marks"),
   remark: text("remark"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -328,19 +329,19 @@ export const studentRemarks = pgTable("student_remarks", {
 // ─── Plans (SuperAdmin manages these) ────────────────────────────────────────
 export const plans = pgTable("plans", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(), // Free, Basic, Pro
-  slug: text("slug").notNull().unique(), // free, basic, pro
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
   description: text("description"),
-  monthlyPrice: integer("monthly_price").notNull().default(0), // in paise (₹1 = 100 paise)
+  monthlyPrice: integer("monthly_price").notNull().default(0),
   yearlyPrice: integer("yearly_price").notNull().default(0),
-  validityDays: integer("validity_days"), // null = subscription based
-  features: text("features").array().default([]), // list of features
+  validityDays: integer("validity_days"),
+  features: text("features").array().default([]),
   maxStudents: integer("max_students").default(50),
   maxBranches: integer("max_branches").default(1),
   maxTeachers: integer("max_teachers").default(5),
   isActive: boolean("is_active").default(true),
   isFeatured: boolean("is_featured").default(false),
-  razorpayMonthlyPlanId: text("razorpay_monthly_plan_id"), // Razorpay plan ID
+  razorpayMonthlyPlanId: text("razorpay_monthly_plan_id"),
   razorpayYearlyPlanId: text("razorpay_yearly_plan_id"),
   sortOrder: integer("sort_order").default(0),
   allowedModules: text("allowed_modules").array().default([]),
@@ -348,7 +349,7 @@ export const plans = pgTable("plans", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// ─── Organizations (one per admin user / tenant) ───────────────────────────
+// ─── Organizations ────────────────────────────────────────────────────────────
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
@@ -369,7 +370,7 @@ export const organizations = pgTable("organizations", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// ─── Subscriptions (per tenant/admin) ────────────────────────────────────────
+// ─── Subscriptions ────────────────────────────────────────────────────────────
 export const subscriptions = pgTable("subscriptions", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
@@ -378,11 +379,11 @@ export const subscriptions = pgTable("subscriptions", {
   planId: integer("plan_id")
     .references(() => plans.id)
     .notNull(),
-  billingCycle: text("billing_cycle").notNull().default("monthly"), // monthly | yearly | lifetime
-  status: text("status").notNull().default("active"), // active | expired | cancelled | pending
+  billingCycle: text("billing_cycle").notNull().default("monthly"),
+  status: text("status").notNull().default("active"),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
-  razorpaySubId: text("razorpay_sub_id"), // Razorpay subscription ID (for auto-debit)
+  razorpaySubId: text("razorpay_sub_id"),
   razorpayCustomerId: text("razorpay_customer_id"),
   autoRenew: boolean("auto_renew").default(false),
   cancelledAt: timestamp("cancelled_at"),
@@ -401,13 +402,13 @@ export const payments = pgTable("payments", {
   planId: integer("plan_id")
     .references(() => plans.id)
     .notNull(),
-  amount: integer("amount").notNull(), // in paise
+  amount: integer("amount").notNull(),
   currency: text("currency").default("INR"),
-  status: text("status").notNull().default("pending"), // pending | captured | failed | refunded
+  status: text("status").notNull().default("pending"),
   razorpayOrderId: text("razorpay_order_id"),
   razorpayPaymentId: text("razorpay_payment_id"),
   razorpaySignature: text("razorpay_signature"),
-  billingCycle: text("billing_cycle"), // monthly | yearly
+  billingCycle: text("billing_cycle"),
   description: text("description"),
   paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -420,9 +421,7 @@ export const insertBranchSchema = createInsertSchema(branches).omit({
 });
 export const insertUserSchema = createInsertSchema(users)
   .omit({ id: true, createdAt: true, passwordHash: true })
-  .extend({
-    password: z.string().min(6),
-  });
+  .extend({ password: z.string().min(6) });
 export const insertLeadSchema = createInsertSchema(leads).omit({
   id: true,
   createdAt: true,
@@ -492,7 +491,6 @@ export const insertRemarkSchema = createInsertSchema(studentRemarks).omit({
   id: true,
   createdAt: true,
 });
-
 export const insertPlanSchema = createInsertSchema(plans).omit({
   id: true,
   createdAt: true,
@@ -507,7 +505,6 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
   id: true,
   createdAt: true,
 });
-
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   id: true,
   createdAt: true,
@@ -531,6 +528,15 @@ export type InventoryItem = typeof inventory.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type Communication = typeof communications.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
+export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
+export type HomeworkRecord = typeof homeworkRecords.$inferSelect;
+export type TestResult = typeof testResults.$inferSelect;
+export type BatchHistory = typeof batchHistory.$inferSelect;
+export type StudentRemark = typeof studentRemarks.$inferSelect;
+export type Plan = typeof plans.$inferSelect;
+export type Subscription = typeof subscriptions.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
+export type Organization = typeof organizations.$inferSelect;
 
 export type InsertBranch = z.infer<typeof insertBranchSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -548,23 +554,12 @@ export type InsertInventory = z.infer<typeof insertInventorySchema>;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
-export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
-export type HomeworkRecord = typeof homeworkRecords.$inferSelect;
-export type TestResult = typeof testResults.$inferSelect;
-export type BatchHistory = typeof batchHistory.$inferSelect;
-export type StudentRemark = typeof studentRemarks.$inferSelect;
-
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type InsertHomework = z.infer<typeof insertHomeworkSchema>;
 export type InsertTestResult = z.infer<typeof insertTestResultSchema>;
 export type InsertBatchHistory = z.infer<typeof insertBatchHistorySchema>;
 export type InsertRemark = z.infer<typeof insertRemarkSchema>;
-
-export type Plan = typeof plans.$inferSelect;
-export type Subscription = typeof subscriptions.$inferSelect;
-export type Payment = typeof payments.$inferSelect;
 export type InsertPlan = z.infer<typeof insertPlanSchema>;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
-export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;

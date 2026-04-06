@@ -1,3 +1,4 @@
+// server/controllers/students.controller.ts — REPLACE
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { api } from "@shared/routes";
@@ -35,8 +36,9 @@ export const StudentsController = {
 
   async create(req: Request, res: Response) {
     try {
+      const adminId = getAdminId(req);
       const input = api.students.create.input.parse(req.body);
-      const student = await storage.createStudent(input);
+      const student = await storage.createStudent({ ...input, adminId } as any);
       res.status(201).json(student);
     } catch (err) {
       if (err instanceof z.ZodError)

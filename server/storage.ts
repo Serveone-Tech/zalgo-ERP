@@ -50,7 +50,7 @@ import {
 } from "@shared/schema";
 import { eq, count, gte, lte, and, desc, or, inArray } from "drizzle-orm";
 
-// ── Helper: get branch IDs belonging to an admin ─────────────────────────────
+// ── Helper: get branch IDs for an admin ──────────────────────────────────────
 async function getAdminBranchIds(adminId: number): Promise<number[]> {
   try {
     const rows = await db
@@ -252,7 +252,7 @@ export class DatabaseStorage implements IStorage {
           .where(eq((branches as any).adminId, adminId))
           .orderBy(branches.name);
       } catch {
-        /* column missing, fall through */
+        /* column missing */
       }
     }
     return await db.select().from(branches).orderBy(branches.name);
@@ -347,15 +347,22 @@ export class DatabaseStorage implements IStorage {
   }): Promise<Lead[]> {
     const { branchId, from, to, adminId } = opts || {};
     const conditions: any[] = [];
+
     if (branchId) {
       conditions.push(eq(leads.branchId, branchId));
     } else if (adminId) {
-      const bids = await getAdminBranchIds(adminId);
-      if (bids.length === 0) return [];
-      conditions.push(inArray(leads.branchId, bids));
+      // Use adminId column directly (most reliable)
+      try {
+        conditions.push(eq((leads as any).adminId, adminId));
+      } catch {
+        const bids = await getAdminBranchIds(adminId);
+        if (bids.length > 0) conditions.push(inArray(leads.branchId, bids));
+      }
     }
+
     if (from) conditions.push(gte(leads.createdAt, from));
     if (to) conditions.push(lte(leads.createdAt, to));
+
     return await db
       .select()
       .from(leads)
@@ -395,15 +402,21 @@ export class DatabaseStorage implements IStorage {
   }): Promise<Student[]> {
     const { branchId, from, to, adminId } = opts || {};
     const conditions: any[] = [];
+
     if (branchId) {
       conditions.push(eq(students.branchId, branchId));
     } else if (adminId) {
-      const bids = await getAdminBranchIds(adminId);
-      if (bids.length === 0) return [];
-      conditions.push(inArray(students.branchId, bids));
+      try {
+        conditions.push(eq((students as any).adminId, adminId));
+      } catch {
+        const bids = await getAdminBranchIds(adminId);
+        if (bids.length > 0) conditions.push(inArray(students.branchId, bids));
+      }
     }
+
     if (from) conditions.push(gte(students.createdAt, from));
     if (to) conditions.push(lte(students.createdAt, to));
+
     return await db
       .select()
       .from(students)
@@ -453,15 +466,21 @@ export class DatabaseStorage implements IStorage {
   }): Promise<Teacher[]> {
     const { branchId, from, to, adminId } = opts || {};
     const conditions: any[] = [];
+
     if (branchId) {
       conditions.push(eq(teachers.branchId, branchId));
     } else if (adminId) {
-      const bids = await getAdminBranchIds(adminId);
-      if (bids.length === 0) return [];
-      conditions.push(inArray(teachers.branchId, bids));
+      try {
+        conditions.push(eq((teachers as any).adminId, adminId));
+      } catch {
+        const bids = await getAdminBranchIds(adminId);
+        if (bids.length > 0) conditions.push(inArray(teachers.branchId, bids));
+      }
     }
+
     if (from) conditions.push(gte(teachers.createdAt, from));
     if (to) conditions.push(lte(teachers.createdAt, to));
+
     return await db
       .select()
       .from(teachers)
@@ -504,7 +523,7 @@ export class DatabaseStorage implements IStorage {
           .from(courses)
           .where(eq((courses as any).adminId, adminId));
       } catch {
-        /* admin_id column missing, return all */
+        /* column missing */
       }
     }
     return await db.select().from(courses);
@@ -585,10 +604,12 @@ export class DatabaseStorage implements IStorage {
   }): Promise<Fee[]> {
     const { branchId, from, to, adminId } = opts || {};
     let bids: number[] = [];
+
     if (adminId && !branchId) {
       bids = await getAdminBranchIds(adminId);
       if (bids.length === 0) return [];
     }
+
     const result = await db
       .select({ fee: fees })
       .from(fees)
@@ -628,6 +649,7 @@ export class DatabaseStorage implements IStorage {
       bids = await getAdminBranchIds(adminId);
       if (bids.length === 0) return [];
     }
+
     const result = await db
       .select({ plan: feePlans })
       .from(feePlans)
@@ -679,6 +701,7 @@ export class DatabaseStorage implements IStorage {
       bids = await getAdminBranchIds(adminId);
       if (bids.length === 0) return [];
     }
+
     const result = await db
       .select({ inst: feeInstallments })
       .from(feeInstallments)
@@ -753,47 +776,70 @@ export class DatabaseStorage implements IStorage {
     adminId?: number;
   }) {
     const { from, to, branchId, adminId } = opts || {};
-    let bids: number[] = [];
-    if (adminId && !branchId) {
-      bids = await getAdminBranchIds(adminId);
-      if (bids.length === 0) {
-        return {
-          totalStudents: 0,
-          activeLeads: 0,
-          totalTeachers: 0,
-          totalRevenue: 0,
-          pendingFees: 0,
-          recentLeads: [],
-          courseEnrollments: [],
-          totalIncome: 0,
-          totalExpense: 0,
-        };
-      }
-    }
 
-    const branchFilter = branchId
-      ? (col: any) => eq(col, branchId)
-      : bids.length > 0
-        ? (col: any) => inArray(col, bids)
-        : null;
+    // Build student/teacher/lead filter based on adminId column
+    const studentFilter = adminId
+      ? (() => {
+          try {
+            return eq((students as any).adminId, adminId);
+          } catch {
+            return undefined;
+          }
+        })()
+      : undefined;
+    const teacherFilter = adminId
+      ? (() => {
+          try {
+            return eq((teachers as any).adminId, adminId);
+          } catch {
+            return undefined;
+          }
+        })()
+      : undefined;
+    const leadFilter = adminId
+      ? (() => {
+          try {
+            return eq((leads as any).adminId, adminId);
+          } catch {
+            return undefined;
+          }
+        })()
+      : undefined;
+
+    // Also need branchIds for fees/installments
+    let bids: number[] = [];
+    if (adminId) bids = await getAdminBranchIds(adminId);
 
     const [studentsResult] = await db
       .select({ count: count() })
       .from(students)
-      .where(branchFilter ? branchFilter(students.branchId) : undefined);
+      .where(branchId ? eq(students.branchId, branchId) : studentFilter);
+
     const [leadsResult] = await db
       .select({ count: count() })
       .from(leads)
       .where(
         and(
           eq(leads.status, "New"),
-          branchFilter ? branchFilter(leads.branchId) : undefined,
+          branchId ? eq(leads.branchId, branchId) : leadFilter,
         ),
       );
+
     const [teachersResult] = await db
       .select({ count: count() })
       .from(teachers)
-      .where(branchFilter ? branchFilter(teachers.branchId) : undefined);
+      .where(branchId ? eq(teachers.branchId, branchId) : teacherFilter);
+
+    // Fees — use student adminId filter
+    const feeStudentFilter = adminId
+      ? (() => {
+          try {
+            return eq((students as any).adminId, adminId);
+          } catch {
+            return undefined;
+          }
+        })()
+      : undefined;
 
     const allFees = await db
       .select({ fee: fees })
@@ -801,7 +847,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(students, eq(fees.studentId, students.id))
       .where(
         and(
-          branchFilter ? branchFilter(students.branchId) : undefined,
+          branchId ? eq(students.branchId, branchId) : feeStudentFilter,
           from ? gte(fees.paymentDate, from) : undefined,
           to ? lte(fees.paymentDate, to) : undefined,
         ),
@@ -816,7 +862,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(feeInstallments.status, "pending"),
-          branchFilter ? branchFilter(students.branchId) : undefined,
+          branchId ? eq(students.branchId, branchId) : feeStudentFilter,
         ),
       )
       .then((r) => r.map((x) => x.inst));
@@ -828,7 +874,7 @@ export class DatabaseStorage implements IStorage {
     const recentLeads = await db
       .select()
       .from(leads)
-      .where(branchFilter ? branchFilter(leads.branchId) : undefined)
+      .where(branchId ? eq(leads.branchId, branchId) : leadFilter)
       .orderBy(desc(leads.createdAt))
       .limit(5);
 
@@ -854,13 +900,16 @@ export class DatabaseStorage implements IStorage {
       }),
     );
 
-    const txFilter = branchFilter
-      ? branchFilter(transactions.branchId)
-      : undefined;
+    // Transactions — branch based
+    const txConditions: any[] = [];
+    if (branchId) txConditions.push(eq(transactions.branchId, branchId));
+    else if (bids.length > 0)
+      txConditions.push(inArray(transactions.branchId, bids));
+
     const allTransactions = await db
       .select()
       .from(transactions)
-      .where(txFilter);
+      .where(txConditions.length ? and(...txConditions) : undefined);
     const totalIncome = allTransactions
       .filter((t) => t.type === "Income")
       .reduce((s, t) => s + t.amount, 0);

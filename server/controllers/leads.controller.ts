@@ -1,6 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
 // server/controllers/leads.controller.ts — REPLACE
-// ─────────────────────────────────────────────────────────────────────────────
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { api } from "@shared/routes";
@@ -38,8 +36,9 @@ export const LeadsController = {
 
   async create(req: Request, res: Response) {
     try {
+      const adminId = getAdminId(req);
       const input = api.leads.create.input.parse(req.body);
-      const lead = await storage.createLead(input);
+      const lead = await storage.createLead({ ...input, adminId } as any);
       res.status(201).json(lead);
     } catch (err) {
       if (err instanceof z.ZodError)
@@ -55,27 +54,34 @@ export const LeadsController = {
 
   async update(req: Request, res: Response) {
     try {
+      const adminId = getAdminId(req);
       const input = api.leads.update.input.parse(req.body);
       const leadId = Number(req.params.id);
 
+      // Auto-create student when lead is marked Converted
       if (input.status === "Converted") {
         const existingLead = await storage.getLead(leadId);
+
         if (existingLead && existingLead.status !== "Converted") {
-          const existingStudents = await storage.getStudents({});
+          const existingStudents = await storage.getStudents({ adminId });
           const alreadyExists = existingStudents.some(
             (s) => s.phone === existingLead.phone,
           );
+
           if (!alreadyExists) {
             await storage.createStudent({
-              enrollmentNo: `ENR-${Date.now()}`,
+              enrollmentNo: `ZIC${Date.now()}-${Math.floor(Math.random() * 999)}`,
               name: existingLead.studentName,
+              email: null,
               phone: existingLead.phone,
-              parentName: existingLead.parentName || "",
-              parentPhone: existingLead.parentPhone || existingLead.phone,
-              address: existingLead.address || "",
+              parentName: existingLead.parentName ?? "",
+              parentPhone: existingLead.parentPhone ?? "",
+              address: existingLead.address ?? null,
+              profilePicture: null,
               status: "Active",
-              branchId: existingLead.branchId,
-              courseInterested: existingLead.courseInterested,
+              branchId: existingLead.branchId ?? null,
+              courseInterested: existingLead.courseInterested ?? null,
+              adminId,
             } as any);
           }
         }

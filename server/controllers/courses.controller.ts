@@ -34,15 +34,16 @@ export const CoursesController = {
         fee: z.coerce.number(),
       });
       const input = bodySchema.parse(req.body);
-      // adminId attach karo taaki course us admin ka ho
       const course = await storage.createCourse({ ...input, adminId } as any);
       res.status(201).json(course);
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res.status(400).json({
-          message: err.errors[0].message,
-          field: err.errors[0].path.join("."),
-        });
+        return res
+          .status(400)
+          .json({
+            message: err.errors[0].message,
+            field: err.errors[0].path.join("."),
+          });
       throw err;
     }
   },
@@ -57,10 +58,12 @@ export const CoursesController = {
       res.json(course);
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res.status(400).json({
-          message: err.errors[0].message,
-          field: err.errors[0].path.join("."),
-        });
+        return res
+          .status(400)
+          .json({
+            message: err.errors[0].message,
+            field: err.errors[0].path.join("."),
+          });
       throw err;
     }
   },
