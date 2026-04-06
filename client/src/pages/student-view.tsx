@@ -173,17 +173,28 @@ export default function StudentViewPage() {
   const enrolledCourses = studentEnrollments
     .map((e) => courses.find((c) => c.id === e.courseId))
     .filter(Boolean) as Course[];
+
   const studentFees = fees.filter((f) => f.studentId === studentId);
   const studentPlans = feePlans.filter((p) => p.studentId === studentId);
   const planIds = studentPlans.map((p) => p.id);
   const studentInstallments = installments.filter((i) =>
     planIds.includes(i.feePlanId),
   );
+
+  // ── Fee calculations ──────────────────────────────────────────────────────────
   const totalPaid =
     studentFees.reduce((s, f) => s + f.amountPaid, 0) +
     studentInstallments
       .filter((i) => i.status === "paid")
       .reduce((s, i) => s + (i.paidAmount || 0), 0);
+
+  const totalNetFee = studentPlans.reduce((s, p) => s + p.netFee, 0);
+  const totalPaidFromPlans = studentPlans.reduce(
+    (s, p) => s + (p.amountPaid || 0),
+    0,
+  );
+  const totalRemaining = Math.max(0, totalNetFee - totalPaidFromPlans);
+  const isFullyPaid = totalNetFee > 0 && totalRemaining === 0;
 
   const statusColor: Record<string, string> = {
     paid: "text-emerald-700 bg-emerald-50 border-emerald-200",
@@ -225,7 +236,9 @@ export default function StudentViewPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* ── Left Column ──────────────────────────────────────────────────── */}
         <div className="lg:col-span-1 space-y-4">
+          {/* Avatar Card */}
           <Card className="rounded-2xl border-border/50">
             <CardContent className="pt-6 flex flex-col items-center gap-3">
               <Avatar className="w-20 h-20 border-2 border-primary/20">
@@ -253,6 +266,7 @@ export default function StudentViewPage() {
             </CardContent>
           </Card>
 
+          {/* Fee Summary Card */}
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -266,6 +280,37 @@ export default function StudentViewPage() {
                   ₹{totalPaid.toLocaleString("en-IN")}
                 </span>
               </div>
+
+              {totalNetFee > 0 && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Fee</span>
+                    <span className="font-medium">
+                      ₹{totalNetFee.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Remaining</span>
+                    <span
+                      className={`font-semibold ${isFullyPaid ? "text-emerald-700" : "text-red-600"}`}
+                    >
+                      {isFullyPaid
+                        ? "✓ Fully Paid"
+                        : `₹${totalRemaining.toLocaleString("en-IN")}`}
+                    </span>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all ${isFullyPaid ? "bg-emerald-500" : "bg-primary"}`}
+                      style={{
+                        width: `${Math.min(100, Math.round((totalPaidFromPlans / totalNetFee) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                </>
+              )}
+
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Fee Plans</span>
                 <span className="font-medium">{studentPlans.length}</span>
@@ -285,11 +330,21 @@ export default function StudentViewPage() {
                   }
                 </span>
               </div>
+
+              {/* Fully paid badge */}
+              {isFullyPaid && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-700 font-medium">
+                  <CheckCircle className="w-4 h-4" />
+                  All fees cleared
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
+        {/* ── Right Column ─────────────────────────────────────────────────── */}
         <div className="lg:col-span-2 space-y-5">
+          {/* Personal Info */}
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -314,6 +369,7 @@ export default function StudentViewPage() {
             </CardContent>
           </Card>
 
+          {/* Parent Details */}
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -327,7 +383,7 @@ export default function StudentViewPage() {
             </CardContent>
           </Card>
 
-          {/* ── Course Interested card — courseInterested directly dikhata hai ── */}
+          {/* Course Details */}
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -339,7 +395,6 @@ export default function StudentViewPage() {
                 label="Course Interested"
                 value={student.courseInterested}
               />
-              {/* Formal enrollments bhi dikhao agar hain */}
               {enrolledCourses.length > 0 && (
                 <div className="mt-3 space-y-2">
                   <p className="text-xs font-medium text-muted-foreground">
@@ -367,6 +422,7 @@ export default function StudentViewPage() {
             </CardContent>
           </Card>
 
+          {/* Fee Payments */}
           {studentFees.length > 0 && (
             <Card className="rounded-2xl border-border/50">
               <CardHeader className="pb-2">
@@ -409,6 +465,7 @@ export default function StudentViewPage() {
             </Card>
           )}
 
+          {/* Fee Plans & Installments */}
           {studentPlans.length > 0 && (
             <Card className="rounded-2xl border-border/50">
               <CardHeader className="pb-2">
@@ -422,10 +479,17 @@ export default function StudentViewPage() {
                   const planInstallments = studentInstallments.filter(
                     (i) => i.feePlanId === plan.id,
                   );
+                  const planPaid = plan.amountPaid || 0;
+                  const planRemaining = Math.max(0, plan.netFee - planPaid);
                   const paidPct =
                     plan.netFee > 0
-                      ? Math.round((plan.amountPaid / plan.netFee) * 100)
+                      ? Math.min(
+                          100,
+                          Math.round((planPaid / plan.netFee) * 100),
+                        )
                       : 0;
+                  const planFullyPaid = plan.netFee > 0 && planRemaining === 0;
+
                   return (
                     <div
                       key={plan.id}
@@ -439,21 +503,40 @@ export default function StudentViewPage() {
                               : "One-time"}{" "}
                             Plan
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            Net Fee: ₹{plan.netFee.toLocaleString("en-IN")} ·
-                            Paid: ₹{plan.amountPaid.toLocaleString("en-IN")}
-                          </p>
+                          <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
+                            <span>
+                              Total: ₹{plan.netFee.toLocaleString("en-IN")}
+                            </span>
+                            <span className="text-emerald-600">
+                              Paid: ₹{planPaid.toLocaleString("en-IN")}
+                            </span>
+                            <span
+                              className={
+                                planFullyPaid
+                                  ? "text-emerald-600 font-medium"
+                                  : "text-red-500"
+                              }
+                            >
+                              {planFullyPaid
+                                ? "✓ Cleared"
+                                : `Due: ₹${planRemaining.toLocaleString("en-IN")}`}
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-sm font-semibold text-primary">
+                        <span
+                          className={`text-sm font-semibold ${planFullyPaid ? "text-emerald-600" : "text-primary"}`}
+                        >
                           {paidPct}%
                         </span>
                       </div>
+
                       <div className="w-full bg-muted rounded-full h-2">
                         <div
-                          className="bg-primary h-2 rounded-full transition-all"
+                          className={`h-2 rounded-full transition-all ${planFullyPaid ? "bg-emerald-500" : "bg-primary"}`}
                           style={{ width: `${paidPct}%` }}
                         />
                       </div>
+
                       {planInstallments.length > 0 && (
                         <div className="space-y-1.5 pt-1">
                           {planInstallments.map((inst) => (
@@ -477,13 +560,20 @@ export default function StudentViewPage() {
                                 <p className="text-xs font-medium">
                                   ₹{inst.amount.toLocaleString("en-IN")}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Due:{" "}
-                                  {format(
-                                    new Date(inst.dueDate),
-                                    "dd MMM yyyy",
-                                  )}
-                                </p>
+                                {inst.status === "paid" && inst.paidAmount ? (
+                                  <p className="text-xs text-emerald-600">
+                                    Paid: ₹
+                                    {inst.paidAmount.toLocaleString("en-IN")}
+                                  </p>
+                                ) : inst.dueDate ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    Due:{" "}
+                                    {format(
+                                      new Date(inst.dueDate),
+                                      "dd MMM yyyy",
+                                    )}
+                                  </p>
+                                ) : null}
                               </div>
                               <Badge
                                 variant="outline"
@@ -540,7 +630,6 @@ function EditStudentForm({
   const [branchId, setBranchId] = useState(
     student.branchId ? String(student.branchId) : "",
   );
-  // Pre-fill existing courseInterested value
   const [courseInterested, setCourseInterested] = useState(
     student.courseInterested ?? "",
   );
@@ -558,7 +647,8 @@ function EditStudentForm({
       enrollmentNo: fd.get("enrollmentNo") as string,
       status,
       branchId: parseBranchId(branchId),
-      courseInterested: courseInterested || null, // ✅ payload mein jayega
+      courseInterested:
+        courseInterested === "_none" ? null : courseInterested || null,
     });
   };
 
@@ -641,8 +731,6 @@ function EditStudentForm({
             className="rounded-xl"
           />
         </div>
-
-        {/* ── Course Select — value state se payload mein jaata hai ── */}
         <div className="col-span-2 space-y-1.5">
           <Label>Course Interested</Label>
           <Select value={courseInterested} onValueChange={setCourseInterested}>
@@ -668,7 +756,6 @@ function EditStudentForm({
             </SelectContent>
           </Select>
         </div>
-
         <div className="col-span-2">
           <BranchSelect value={branchId} onChange={setBranchId} />
         </div>

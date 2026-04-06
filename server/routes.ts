@@ -46,7 +46,9 @@ adminRouter.delete("/blocked-ips/:ip", requireAdmin, (req, res) => {
 
 const enrollmentsRouter = Router();
 enrollmentsRouter.get("/", requireAuth, async (req, res) => {
-  const enrollments = await storage.getEnrollments();
+  const s = req.session as any;
+  const adminId = s.adminId ?? s.userId;
+  const enrollments = await storage.getEnrollmentsByAdmin(adminId);
   res.json(enrollments);
 });
 enrollmentsRouter.post("/", requireAuth, async (req, res) => {

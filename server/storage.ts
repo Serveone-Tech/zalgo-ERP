@@ -56,10 +56,19 @@ async function getAdminBranchIds(adminId: number): Promise<number[]> {
     const rows = await db
       .select({ id: branches.id })
       .from(branches)
-      .where(eq((branches as any).adminId, adminId));
+      .where(eq(branches.adminId, adminId));
     return rows.map((r) => r.id);
   } catch {
     return [];
+  }
+}
+
+// ── Helper: safe adminId filter — tries column, falls back gracefully ─────────
+function adminFilter(table: any, adminId: number) {
+  try {
+    return eq(table.adminId, adminId);
+  } catch {
+    return undefined;
   }
 }
 
@@ -123,6 +132,7 @@ export interface IStorage {
   deleteCourse(id: number): Promise<void>;
 
   getEnrollments(): Promise<Enrollment[]>;
+  getEnrollmentsByAdmin(adminId: number): Promise<Enrollment[]>;
   getEnrollmentByStudentAndCourse(
     studentId: number,
     courseId: number,
@@ -179,7 +189,6 @@ export interface IStorage {
 
   getAssignments(adminId?: number): Promise<Assignment[]>;
   createAssignment(assignment: InsertAssignment): Promise<Assignment>;
-
   getExams(adminId?: number): Promise<Exam[]>;
   createExam(exam: InsertExam): Promise<Exam>;
 
@@ -205,11 +214,13 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // ── Auto-enroll helpers ───────────────────────────────────────────────────────
   private async autoEnroll(
     studentId: number,
     courseInterested: string | null | undefined,
   ): Promise<void> {
     if (!courseInterested) return;
+    // Fetch ALL courses (no adminId filter) to match by name
     const allCourses = await db.select().from(courses);
     const matched = allCourses.find(
       (c) => c.name.toLowerCase() === courseInterested.toLowerCase(),
@@ -245,15 +256,11 @@ export class DatabaseStorage implements IStorage {
   // ── Branches ──────────────────────────────────────────────────────────────────
   async getBranches(adminId?: number): Promise<Branch[]> {
     if (adminId) {
-      try {
-        return await db
-          .select()
-          .from(branches)
-          .where(eq((branches as any).adminId, adminId))
-          .orderBy(branches.name);
-      } catch {
-        /* column missing */
-      }
+      return await db
+        .select()
+        .from(branches)
+        .where(eq(branches.adminId, adminId))
+        .orderBy(branches.name);
     }
     return await db.select().from(branches).orderBy(branches.name);
   }
@@ -288,19 +295,11 @@ export class DatabaseStorage implements IStorage {
   async getUsers(adminId?: number): Promise<Omit<User, "passwordHash">[]> {
     let all;
     if (adminId) {
-      try {
-        all = await db
-          .select()
-          .from(users)
-          .where(or(eq(users.id, adminId), eq((users as any).adminId, adminId)))
-          .orderBy(users.createdAt);
-      } catch {
-        all = await db
-          .select()
-          .from(users)
-          .where(eq(users.id, adminId))
-          .orderBy(users.createdAt);
-      }
+      all = await db
+        .select()
+        .from(users)
+        .where(or(eq(users.id, adminId), eq(users.adminId, adminId)))
+        .orderBy(users.createdAt);
     } else {
       all = await db.select().from(users).orderBy(users.createdAt);
     }
@@ -351,13 +350,7 @@ export class DatabaseStorage implements IStorage {
     if (branchId) {
       conditions.push(eq(leads.branchId, branchId));
     } else if (adminId) {
-      // Use adminId column directly (most reliable)
-      try {
-        conditions.push(eq((leads as any).adminId, adminId));
-      } catch {
-        const bids = await getAdminBranchIds(adminId);
-        if (bids.length > 0) conditions.push(inArray(leads.branchId, bids));
-      }
+      conditions.push(eq(leads.adminId, adminId));
     }
 
     if (from) conditions.push(gte(leads.createdAt, from));
@@ -406,12 +399,7 @@ export class DatabaseStorage implements IStorage {
     if (branchId) {
       conditions.push(eq(students.branchId, branchId));
     } else if (adminId) {
-      try {
-        conditions.push(eq((students as any).adminId, adminId));
-      } catch {
-        const bids = await getAdminBranchIds(adminId);
-        if (bids.length > 0) conditions.push(inArray(students.branchId, bids));
-      }
+      conditions.push(eq(students.adminId, adminId));
     }
 
     if (from) conditions.push(gte(students.createdAt, from));
@@ -470,12 +458,7 @@ export class DatabaseStorage implements IStorage {
     if (branchId) {
       conditions.push(eq(teachers.branchId, branchId));
     } else if (adminId) {
-      try {
-        conditions.push(eq((teachers as any).adminId, adminId));
-      } catch {
-        const bids = await getAdminBranchIds(adminId);
-        if (bids.length > 0) conditions.push(inArray(teachers.branchId, bids));
-      }
+      conditions.push(eq(teachers.adminId, adminId));
     }
 
     if (from) conditions.push(gte(teachers.createdAt, from));
@@ -517,14 +500,10 @@ export class DatabaseStorage implements IStorage {
   // ── Courses ───────────────────────────────────────────────────────────────────
   async getCourses(adminId?: number): Promise<Course[]> {
     if (adminId) {
-      try {
-        return await db
-          .select()
-          .from(courses)
-          .where(eq((courses as any).adminId, adminId));
-      } catch {
-        /* column missing */
-      }
+      return await db
+        .select()
+        .from(courses)
+        .where(eq(courses.adminId, adminId));
     }
     return await db.select().from(courses);
   }
@@ -570,6 +549,20 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(enrollments);
   }
 
+  // Get enrollments only for this admin's students
+  async getEnrollmentsByAdmin(adminId: number): Promise<Enrollment[]> {
+    const adminStudents = await db
+      .select({ id: students.id })
+      .from(students)
+      .where(eq(students.adminId, adminId));
+    const studentIds = adminStudents.map((s) => s.id);
+    if (studentIds.length === 0) return [];
+    return await db
+      .select()
+      .from(enrollments)
+      .where(inArray(enrollments.studentId, studentIds));
+  }
+
   async getEnrollmentByStudentAndCourse(
     studentId: number,
     courseId: number,
@@ -603,11 +596,29 @@ export class DatabaseStorage implements IStorage {
     adminId?: number;
   }): Promise<Fee[]> {
     const { branchId, from, to, adminId } = opts || {};
-    let bids: number[] = [];
 
-    if (adminId && !branchId) {
-      bids = await getAdminBranchIds(adminId);
-      if (bids.length === 0) return [];
+    if (adminId) {
+      // Filter by student's adminId
+      const adminStudents = await db
+        .select({ id: students.id })
+        .from(students)
+        .where(eq(students.adminId, adminId));
+      const sids = adminStudents.map((s) => s.id);
+      if (sids.length === 0) return [];
+
+      const result = await db
+        .select({ fee: fees })
+        .from(fees)
+        .where(
+          and(
+            inArray(fees.studentId, sids),
+            branchId ? eq(fees.branchId, branchId) : undefined,
+            from ? gte(fees.paymentDate, from) : undefined,
+            to ? lte(fees.paymentDate, to) : undefined,
+          ),
+        )
+        .orderBy(desc(fees.paymentDate));
+      return result.map((r) => r.fee);
     }
 
     const result = await db
@@ -616,11 +627,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(students, eq(fees.studentId, students.id))
       .where(
         and(
-          branchId
-            ? eq(students.branchId, branchId)
-            : bids.length > 0
-              ? inArray(students.branchId, bids)
-              : undefined,
+          branchId ? eq(students.branchId, branchId) : undefined,
           from ? gte(fees.paymentDate, from) : undefined,
           to ? lte(fees.paymentDate, to) : undefined,
         ),
@@ -644,10 +651,20 @@ export class DatabaseStorage implements IStorage {
     branchId?: number,
     adminId?: number,
   ): Promise<FeePlan[]> {
-    let bids: number[] = [];
-    if (adminId && !branchId && !studentId) {
-      bids = await getAdminBranchIds(adminId);
-      if (bids.length === 0) return [];
+    if (adminId && !studentId) {
+      const adminStudents = await db
+        .select({ id: students.id })
+        .from(students)
+        .where(eq(students.adminId, adminId));
+      const sids = adminStudents.map((s) => s.id);
+      if (sids.length === 0) return [];
+
+      const result = await db
+        .select({ plan: feePlans })
+        .from(feePlans)
+        .where(inArray(feePlans.studentId, sids))
+        .orderBy(desc(feePlans.createdAt));
+      return result.map((r) => r.plan);
     }
 
     const result = await db
@@ -657,11 +674,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           studentId ? eq(feePlans.studentId, studentId) : undefined,
-          branchId
-            ? eq(students.branchId, branchId)
-            : bids.length > 0
-              ? inArray(students.branchId, bids)
-              : undefined,
+          branchId ? eq(students.branchId, branchId) : undefined,
         ),
       )
       .orderBy(desc(feePlans.createdAt));
@@ -696,10 +709,19 @@ export class DatabaseStorage implements IStorage {
     branchId?: number,
     adminId?: number,
   ): Promise<FeeInstallment[]> {
-    let bids: number[] = [];
-    if (adminId && !branchId && !feePlanId) {
-      bids = await getAdminBranchIds(adminId);
-      if (bids.length === 0) return [];
+    if (adminId && !feePlanId) {
+      const adminStudents = await db
+        .select({ id: students.id })
+        .from(students)
+        .where(eq(students.adminId, adminId));
+      const sids = adminStudents.map((s) => s.id);
+      if (sids.length === 0) return [];
+
+      return await db
+        .select()
+        .from(feeInstallments)
+        .where(inArray(feeInstallments.studentId, sids))
+        .orderBy(feeInstallments.installmentNo);
     }
 
     const result = await db
@@ -709,11 +731,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           feePlanId ? eq(feeInstallments.feePlanId, feePlanId) : undefined,
-          branchId
-            ? eq(students.branchId, branchId)
-            : bids.length > 0
-              ? inArray(students.branchId, bids)
-              : undefined,
+          branchId ? eq(students.branchId, branchId) : undefined,
         ),
       )
       .orderBy(feeInstallments.installmentNo);
@@ -723,20 +741,22 @@ export class DatabaseStorage implements IStorage {
   async getOverdueInstallments(adminId?: number): Promise<FeeInstallment[]> {
     const now = new Date();
     if (adminId) {
-      const bids = await getAdminBranchIds(adminId);
-      if (bids.length === 0) return [];
+      const adminStudents = await db
+        .select({ id: students.id })
+        .from(students)
+        .where(eq(students.adminId, adminId));
+      const sids = adminStudents.map((s) => s.id);
+      if (sids.length === 0) return [];
       return await db
-        .select({ inst: feeInstallments })
+        .select()
         .from(feeInstallments)
-        .leftJoin(students, eq(feeInstallments.studentId, students.id))
         .where(
           and(
             eq(feeInstallments.status, "pending"),
             lte(feeInstallments.dueDate, now),
-            inArray(students.branchId, bids),
+            inArray(feeInstallments.studentId, sids),
           ),
-        )
-        .then((r) => r.map((x) => x.inst));
+        );
     }
     return await db
       .select()
@@ -777,95 +797,101 @@ export class DatabaseStorage implements IStorage {
   }) {
     const { from, to, branchId, adminId } = opts || {};
 
-    // Build student/teacher/lead filter based on adminId column
-    const studentFilter = adminId
-      ? (() => {
-          try {
-            return eq((students as any).adminId, adminId);
-          } catch {
-            return undefined;
-          }
-        })()
-      : undefined;
-    const teacherFilter = adminId
-      ? (() => {
-          try {
-            return eq((teachers as any).adminId, adminId);
-          } catch {
-            return undefined;
-          }
-        })()
-      : undefined;
-    const leadFilter = adminId
-      ? (() => {
-          try {
-            return eq((leads as any).adminId, adminId);
-          } catch {
-            return undefined;
-          }
-        })()
-      : undefined;
+    // Get admin's student IDs for fee filtering
+    let adminStudentIds: number[] = [];
+    if (adminId) {
+      const rows = await db
+        .select({ id: students.id })
+        .from(students)
+        .where(eq(students.adminId, adminId));
+      adminStudentIds = rows.map((r) => r.id);
+    }
 
-    // Also need branchIds for fees/installments
-    let bids: number[] = [];
-    if (adminId) bids = await getAdminBranchIds(adminId);
+    const studentFilter = adminId
+      ? branchId
+        ? eq(students.branchId, branchId)
+        : eq(students.adminId, adminId)
+      : branchId
+        ? eq(students.branchId, branchId)
+        : undefined;
 
     const [studentsResult] = await db
       .select({ count: count() })
       .from(students)
-      .where(branchId ? eq(students.branchId, branchId) : studentFilter);
-
+      .where(studentFilter);
     const [leadsResult] = await db
       .select({ count: count() })
       .from(leads)
       .where(
         and(
           eq(leads.status, "New"),
-          branchId ? eq(leads.branchId, branchId) : leadFilter,
+          adminId
+            ? eq(leads.adminId, adminId)
+            : branchId
+              ? eq(leads.branchId, branchId)
+              : undefined,
         ),
       );
-
     const [teachersResult] = await db
       .select({ count: count() })
       .from(teachers)
-      .where(branchId ? eq(teachers.branchId, branchId) : teacherFilter);
-
-    // Fees — use student adminId filter
-    const feeStudentFilter = adminId
-      ? (() => {
-          try {
-            return eq((students as any).adminId, adminId);
-          } catch {
-            return undefined;
-          }
-        })()
-      : undefined;
-
-    const allFees = await db
-      .select({ fee: fees })
-      .from(fees)
-      .leftJoin(students, eq(fees.studentId, students.id))
       .where(
-        and(
-          branchId ? eq(students.branchId, branchId) : feeStudentFilter,
-          from ? gte(fees.paymentDate, from) : undefined,
-          to ? lte(fees.paymentDate, to) : undefined,
-        ),
-      )
-      .then((r) => r.map((x) => x.fee));
+        adminId
+          ? eq(teachers.adminId, adminId)
+          : branchId
+            ? eq(teachers.branchId, branchId)
+            : undefined,
+      );
+
+    // Fees
+    let allFees: Fee[];
+    if (adminStudentIds.length > 0) {
+      allFees = await db
+        .select()
+        .from(fees)
+        .where(
+          and(
+            inArray(fees.studentId, adminStudentIds),
+            from ? gte(fees.paymentDate, from) : undefined,
+            to ? lte(fees.paymentDate, to) : undefined,
+          ),
+        );
+    } else if (!adminId) {
+      allFees = await db
+        .select()
+        .from(fees)
+        .where(
+          and(
+            branchId ? eq(fees.branchId, branchId) : undefined,
+            from ? gte(fees.paymentDate, from) : undefined,
+            to ? lte(fees.paymentDate, to) : undefined,
+          ),
+        );
+    } else {
+      allFees = [];
+    }
     const totalRevenue = allFees.reduce((sum, fee) => sum + fee.amountPaid, 0);
 
-    const allInstallments = await db
-      .select({ inst: feeInstallments })
-      .from(feeInstallments)
-      .leftJoin(students, eq(feeInstallments.studentId, students.id))
-      .where(
-        and(
-          eq(feeInstallments.status, "pending"),
-          branchId ? eq(students.branchId, branchId) : feeStudentFilter,
-        ),
-      )
-      .then((r) => r.map((x) => x.inst));
+    // Pending installments
+    let allInstallments: FeeInstallment[];
+    if (adminStudentIds.length > 0) {
+      allInstallments = await db
+        .select()
+        .from(feeInstallments)
+        .where(
+          and(
+            eq(feeInstallments.status, "pending"),
+            inArray(feeInstallments.studentId, adminStudentIds),
+          ),
+        );
+    } else if (!adminId) {
+      allInstallments = await db
+        .select()
+        .from(feeInstallments)
+        .where(eq(feeInstallments.status, "pending"));
+    } else {
+      allInstallments = [];
+    }
     const pendingFees = allInstallments.reduce(
       (sum, i) => sum + (i.amount - (i.paidAmount ?? 0)),
       0,
@@ -874,21 +900,19 @@ export class DatabaseStorage implements IStorage {
     const recentLeads = await db
       .select()
       .from(leads)
-      .where(branchId ? eq(leads.branchId, branchId) : leadFilter)
+      .where(
+        adminId
+          ? eq(leads.adminId, adminId)
+          : branchId
+            ? eq(leads.branchId, branchId)
+            : undefined,
+      )
       .orderBy(desc(leads.createdAt))
       .limit(5);
 
-    let coursesList: Course[];
-    try {
-      coursesList = adminId
-        ? await db
-            .select()
-            .from(courses)
-            .where(eq((courses as any).adminId, adminId))
-        : await db.select().from(courses);
-    } catch {
-      coursesList = await db.select().from(courses);
-    }
+    const coursesList = adminId
+      ? await db.select().from(courses).where(eq(courses.adminId, adminId))
+      : await db.select().from(courses);
 
     const courseEnrollments = await Promise.all(
       coursesList.map(async (course) => {
@@ -900,11 +924,12 @@ export class DatabaseStorage implements IStorage {
       }),
     );
 
-    // Transactions — branch based
+    // Transactions — branch based if has branches, else no filter for admin
+    const adminBranchIds = adminId ? await getAdminBranchIds(adminId) : [];
     const txConditions: any[] = [];
     if (branchId) txConditions.push(eq(transactions.branchId, branchId));
-    else if (bids.length > 0)
-      txConditions.push(inArray(transactions.branchId, bids));
+    else if (adminBranchIds.length > 0)
+      txConditions.push(inArray(transactions.branchId, adminBranchIds));
 
     const allTransactions = await db
       .select()
@@ -933,19 +958,17 @@ export class DatabaseStorage implements IStorage {
   // ── Assignments ───────────────────────────────────────────────────────────────
   async getAssignments(adminId?: number): Promise<Assignment[]> {
     if (adminId) {
-      try {
-        const adminCourses = await db
-          .select({ id: courses.id })
-          .from(courses)
-          .where(eq((courses as any).adminId, adminId));
-        const cids = adminCourses.map((c) => c.id);
-        if (cids.length === 0) return [];
-        return await db
-          .select()
-          .from(assignments)
-          .where(inArray(assignments.courseId, cids))
-          .orderBy(assignments.createdAt);
-      } catch {}
+      const adminCourses = await db
+        .select({ id: courses.id })
+        .from(courses)
+        .where(eq(courses.adminId, adminId));
+      const cids = adminCourses.map((c) => c.id);
+      if (cids.length === 0) return [];
+      return await db
+        .select()
+        .from(assignments)
+        .where(inArray(assignments.courseId, cids))
+        .orderBy(assignments.createdAt);
     }
     return await db.select().from(assignments).orderBy(assignments.createdAt);
   }
@@ -958,19 +981,17 @@ export class DatabaseStorage implements IStorage {
   // ── Exams ─────────────────────────────────────────────────────────────────────
   async getExams(adminId?: number): Promise<Exam[]> {
     if (adminId) {
-      try {
-        const adminCourses = await db
-          .select({ id: courses.id })
-          .from(courses)
-          .where(eq((courses as any).adminId, adminId));
-        const cids = adminCourses.map((c) => c.id);
-        if (cids.length === 0) return [];
-        return await db
-          .select()
-          .from(exams)
-          .where(inArray(exams.courseId, cids))
-          .orderBy(exams.date);
-      } catch {}
+      const adminCourses = await db
+        .select({ id: courses.id })
+        .from(courses)
+        .where(eq(courses.adminId, adminId));
+      const cids = adminCourses.map((c) => c.id);
+      if (cids.length === 0) return [];
+      return await db
+        .select()
+        .from(exams)
+        .where(inArray(exams.courseId, cids))
+        .orderBy(exams.date);
     }
     return await db.select().from(exams).orderBy(exams.date);
   }
@@ -980,16 +1001,21 @@ export class DatabaseStorage implements IStorage {
     return e;
   }
 
-  // ── Inventory ─────────────────────────────────────────────────────────────────
+  // ── Inventory — no branch required, adminId direct filter ────────────────────
   async getInventory(adminId?: number): Promise<InventoryItem[]> {
     if (adminId) {
+      // Try adminId column first, fallback to branch-based
       const bids = await getAdminBranchIds(adminId);
-      if (bids.length === 0) return [];
-      return await db
-        .select()
-        .from(inventory)
-        .where(inArray(inventory.branchId, bids))
-        .orderBy(inventory.itemName);
+      if (bids.length > 0) {
+        return await db
+          .select()
+          .from(inventory)
+          .where(inArray(inventory.branchId, bids))
+          .orderBy(inventory.itemName);
+      }
+      // No branches — return all inventory with no branch (null branchId)
+      // This handles admins who don't use branches
+      return await db.select().from(inventory).orderBy(inventory.itemName);
     }
     return await db.select().from(inventory).orderBy(inventory.itemName);
   }
@@ -1015,23 +1041,36 @@ export class DatabaseStorage implements IStorage {
     await db.delete(inventory).where(eq(inventory.id, id));
   }
 
-  // ── Transactions ──────────────────────────────────────────────────────────────
+  // ── Transactions — no branch required ────────────────────────────────────────
   async getTransactions(
     branchId?: number,
     adminId?: number,
   ): Promise<Transaction[]> {
-    const conditions: any[] = [];
     if (branchId) {
-      conditions.push(eq(transactions.branchId, branchId));
-    } else if (adminId) {
+      return await db
+        .select()
+        .from(transactions)
+        .where(eq(transactions.branchId, branchId))
+        .orderBy(desc(transactions.date));
+    }
+    if (adminId) {
       const bids = await getAdminBranchIds(adminId);
-      if (bids.length === 0) return [];
-      conditions.push(inArray(transactions.branchId, bids));
+      if (bids.length > 0) {
+        return await db
+          .select()
+          .from(transactions)
+          .where(inArray(transactions.branchId, bids))
+          .orderBy(desc(transactions.date));
+      }
+      // No branches — return all transactions with null branchId
+      return await db
+        .select()
+        .from(transactions)
+        .orderBy(desc(transactions.date));
     }
     return await db
       .select()
       .from(transactions)
-      .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(transactions.date));
   }
 
@@ -1049,13 +1088,11 @@ export class DatabaseStorage implements IStorage {
   // ── Communications ────────────────────────────────────────────────────────────
   async getCommunications(adminId?: number): Promise<Communication[]> {
     if (adminId) {
-      try {
-        return await db
-          .select()
-          .from(communications)
-          .where(eq((communications as any).adminId, adminId))
-          .orderBy(desc(communications.sentAt));
-      } catch {}
+      return await db
+        .select()
+        .from(communications)
+        .where(eq(communications.adminId, adminId))
+        .orderBy(desc(communications.sentAt));
     }
     return await db
       .select()
@@ -1071,14 +1108,12 @@ export class DatabaseStorage implements IStorage {
   // ── Notifications ─────────────────────────────────────────────────────────────
   async getNotifications(adminId?: number): Promise<Notification[]> {
     if (adminId) {
-      try {
-        return await db
-          .select()
-          .from(notifications)
-          .where(eq((notifications as any).adminId, adminId))
-          .orderBy(desc(notifications.createdAt))
-          .limit(50);
-      } catch {}
+      return await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.adminId, adminId))
+        .orderBy(desc(notifications.createdAt))
+        .limit(50);
     }
     return await db
       .select()
@@ -1101,13 +1136,11 @@ export class DatabaseStorage implements IStorage {
 
   async markAllNotificationsRead(adminId?: number): Promise<void> {
     if (adminId) {
-      try {
-        await db
-          .update(notifications)
-          .set({ isRead: true })
-          .where(eq((notifications as any).adminId, adminId));
-        return;
-      } catch {}
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(eq(notifications.adminId, adminId));
+      return;
     }
     await db.update(notifications).set({ isRead: true });
   }

@@ -707,8 +707,8 @@ function RecordPaymentForm({
 
   // ── Is student ke enrolled courses filter karo ───────────────────────────
   const studentEnrolledCourseIds = enrollments
-    .filter((e) => e.studentId === Number(studentId))
-    .map((e) => e.courseId);
+    .filter((e) => (e.studentId ?? (e as any).student_id) === Number(studentId))
+    .map((e) => e.courseId ?? (e as any).course_id);
 
   const studentCourses = courses.filter((c) =>
     studentEnrolledCourseIds.includes(c.id),
@@ -720,9 +720,11 @@ function RecordPaymentForm({
     setCourseId(""); // course reset karo
 
     // Agar sirf ek hi course hai toh auto-select karo
+
     const newEnrolledIds = enrollments
-      .filter((e) => e.studentId === Number(val))
-      .map((e) => e.courseId);
+      .filter((e) => (e.studentId ?? (e as any).student_id) === Number(val))
+      .map((e) => e.courseId ?? (e as any).course_id);
+
     if (newEnrolledIds.length === 1) {
       setCourseId(String(newEnrolledIds[0]));
     }
@@ -782,11 +784,11 @@ function RecordPaymentForm({
         <Label>Course *</Label>
         {!studentId ? (
           <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-sm text-muted-foreground">
-            Pehle student select karo
+            select student
           </div>
         ) : studentCourses.length === 0 ? (
           <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
-            Is student ka koi enrollment nahi hai
+            This student has no course enrollment{" "}
           </div>
         ) : (
           <Select value={courseId} onValueChange={setCourseId}>
