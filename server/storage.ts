@@ -1004,7 +1004,6 @@ export class DatabaseStorage implements IStorage {
   // ── Inventory — no branch required, adminId direct filter ────────────────────
   async getInventory(adminId?: number): Promise<InventoryItem[]> {
     if (adminId) {
-      // Try adminId column first, fallback to branch-based
       const bids = await getAdminBranchIds(adminId);
       if (bids.length > 0) {
         return await db
@@ -1013,9 +1012,7 @@ export class DatabaseStorage implements IStorage {
           .where(inArray(inventory.branchId, bids))
           .orderBy(inventory.itemName);
       }
-      // No branches — return all inventory with no branch (null branchId)
-      // This handles admins who don't use branches
-      return await db.select().from(inventory).orderBy(inventory.itemName);
+      return []; // No branches = no inventory for this admin
     }
     return await db.select().from(inventory).orderBy(inventory.itemName);
   }
@@ -1062,11 +1059,7 @@ export class DatabaseStorage implements IStorage {
           .where(inArray(transactions.branchId, bids))
           .orderBy(desc(transactions.date));
       }
-      // No branches — return all transactions with null branchId
-      return await db
-        .select()
-        .from(transactions)
-        .orderBy(desc(transactions.date));
+      return []; // No branches = no transactions
     }
     return await db
       .select()

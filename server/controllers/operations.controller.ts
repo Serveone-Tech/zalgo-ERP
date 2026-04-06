@@ -1,10 +1,9 @@
-// server/controllers/operations.controller.ts — REPLACE
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { api } from "@shared/routes";
 import { parsePeriodToDateRange } from "../utils/period";
 import { z } from "zod";
-import { sendMessage } from "server/utils/messaging.service";
+import { sendMessage } from "../utils/messaging.service";
 
 function getAdminId(req: Request): number {
   const s = req.session as any;
@@ -108,9 +107,8 @@ export const CommunicationsController = {
       if (input.recipientType === "Bulk" && input.courseId) {
         const courseStudents = await storage.getCourseStudents(input.courseId);
         for (const { student } of courseStudents) {
-          let to = "";
-          if (input.type === "Email") to = student.email || "";
-          else to = student.phone || "";
+          const to =
+            input.type === "Email" ? student.email || "" : student.phone || "";
           if (!to) {
             results.push({
               recipient: student.name,
@@ -184,6 +182,7 @@ export const CommunicationsController = {
         results.push({ recipient: teacher.name, ...result });
       }
 
+      // Log to DB with adminId
       await storage.createCommunication({
         recipientId: input.recipientId || 0,
         recipientType: input.recipientType,
@@ -195,6 +194,7 @@ export const CommunicationsController = {
 
       const successCount = results.filter((r) => r.success).length;
       const failCount = results.filter((r) => !r.success).length;
+
       res.status(201).json({
         message:
           failCount === 0
