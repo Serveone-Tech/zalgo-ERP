@@ -12,7 +12,7 @@ const WINDOW_MS = 15 * 60 * 1000;
 
 export const loginLimiter = rateLimit({
   windowMs: WINDOW_MS,
-  max: 10,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
@@ -34,7 +34,7 @@ export const loginLimiter = rateLimit({
 
 export const globalLimiter = rateLimit({
   windowMs: WINDOW_MS,
-  max: 200,
+  max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many requests, please try again later." },

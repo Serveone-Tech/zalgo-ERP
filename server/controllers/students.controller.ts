@@ -1,6 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// server/controllers/students.controller.ts — REPLACE
-// ─────────────────────────────────────────────────────────────────────────────
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { api } from "@shared/routes";
@@ -75,4 +72,3 @@ export const StudentsController = {
     res.status(204).send();
   },
 };
-

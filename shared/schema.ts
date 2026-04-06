@@ -13,20 +13,19 @@ import { z } from "zod";
 // ─── Branches ─────────────────────────────────────────────────────────────────
 export const branches = pgTable("branches", {
   id: serial("id").primaryKey(),
-  adminId: integer("admin_id").references((): any => users.id),
   name: text("name").notNull(),
   city: text("city"),
   address: text("address"),
   phone: text("phone"),
   email: text("email"),
   isActive: boolean("is_active").default(true),
+  adminId: integer("admin_id").references((): any => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // ─── Users (Authentication & Roles) ───────────────────────────────────────────
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  adminId: integer("admin_id").references((): any => users.id),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
@@ -34,6 +33,7 @@ export const users = pgTable("users", {
   permissions: text("permissions").array().default([]),
   branchId: integer("branch_id").references(() => branches.id),
   isActive: boolean("is_active").default(true),
+  adminId: integer("admin_id").references((): any => users.id),
   isOnboarded: boolean("is_onboarded").default(false),
   organizationId: integer("organization_id"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -93,6 +93,7 @@ export const courses = pgTable("courses", {
   fee: integer("fee").notNull(),
   status: text("status").notNull().default("Active"),
   branchId: integer("branch_id").references(() => branches.id),
+  adminId: integer("admin_id").references(() => users.id),
 });
 
 // ─── Enrollments ──────────────────────────────────────────────────────────────
@@ -230,25 +231,25 @@ export const transactions = pgTable("transactions", {
 // ─── Communications ───────────────────────────────────────────────────────────
 export const communications = pgTable("communications", {
   id: serial("id").primaryKey(),
-  adminId: integer("admin_id").references(() => users.id),
   recipientId: integer("recipient_id").notNull(),
   recipientType: text("recipient_type").notNull(),
   type: text("type").notNull(),
   subject: text("subject"),
   content: text("content").notNull(),
+  adminId: integer("admin_id").references(() => users.id),
   sentAt: timestamp("sent_at").defaultNow(),
 });
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
-  adminId: integer("admin_id").references(() => users.id),
   title: text("title").notNull(),
   message: text("message").notNull(),
   type: text("type").notNull().default("info"),
   isRead: boolean("is_read").default(false),
   relatedId: integer("related_id"),
   relatedType: text("related_type"),
+  adminId: integer("admin_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

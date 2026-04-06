@@ -1,4 +1,6 @@
-
+// ─────────────────────────────────────────────────────────────────────────────
+// server/controllers/notifications.controller.ts — REPLACE
+// ─────────────────────────────────────────────────────────────────────────────
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { db } from "../db";

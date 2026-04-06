@@ -1,4 +1,4 @@
-
+// server/controllers/teachers.controller.ts — REPLACE
 import type { Request, Response } from "express";
 import { storage } from "../storage";
 import { api } from "@shared/routes";
