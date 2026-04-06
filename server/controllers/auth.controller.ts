@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { sendOtpEmail } from "../utils/email.service";
 import bcrypt from "bcrypt";
 import { storage } from "../storage";
 import { z } from "zod";
@@ -58,6 +59,7 @@ export const AuthController = {
   },
 
   // Forgot password: send OTP
+  // Forgot password: send OTP
   async forgotPassword(req: Request, res: Response) {
     const schema = z.object({ email: z.string().email() });
     try {
@@ -71,10 +73,16 @@ export const AuthController = {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const expiry = new Date(Date.now() + 10 * 60 * 1000);
       otpStore.set(email.toLowerCase(), { otp, expiry });
-      console.log(
-        `\n[OTP] Password reset OTP for ${email}: ${otp} (valid 10 min)\n`,
+
+      console.log(`[OTP] ${email}: ${otp}`);
+
+      // Send email — non-blocking, don't throw if fails
+      sendOtpEmail(email, otp, user.name).catch((e) =>
+        console.error("[OTP Email] Failed:", e.message),
       );
-      res.json({
+
+      // Always respond immediately — don't await email
+      return res.json({
         message: "If this email is registered, an OTP has been sent.",
       });
     } catch (err) {

@@ -167,6 +167,7 @@ export default function StudentViewPage() {
     );
   }
 
+  // ── Data filters ──────────────────────────────────────────────────────────────
   const studentEnrollments = enrollments.filter(
     (e) => e.studentId === studentId,
   );
@@ -182,19 +183,34 @@ export default function StudentViewPage() {
   );
 
   // ── Fee calculations ──────────────────────────────────────────────────────────
-  const totalPaid =
-    studentFees.reduce((s, f) => s + f.amountPaid, 0) +
-    studentInstallments
-      .filter((i) => i.status === "paid")
-      .reduce((s, i) => s + (i.paidAmount || 0), 0);
+  const hasFeeplan = studentPlans.length > 0;
 
+  // Fee Plan based calculations
   const totalNetFee = studentPlans.reduce((s, p) => s + p.netFee, 0);
   const totalPaidFromPlans = studentPlans.reduce(
     (s, p) => s + (p.amountPaid || 0),
     0,
   );
-  const totalRemaining = Math.max(0, totalNetFee - totalPaidFromPlans);
-  const isFullyPaid = totalNetFee > 0 && totalRemaining === 0;
+
+  // Direct payment based calculations (from enrolled course fee)
+  const directFeesPaid = studentFees.reduce((s, f) => s + f.amountPaid, 0);
+  const courseFeeTotal = enrolledCourses.reduce((s, c) => s + c.fee, 0);
+
+  // Use fee plan if exists, otherwise fall back to direct fees vs course fee
+  const displayNetFee = hasFeeplan ? totalNetFee : courseFeeTotal;
+  const displayPaid = hasFeeplan ? totalPaidFromPlans : directFeesPaid;
+  const displayRemaining = Math.max(0, displayNetFee - displayPaid);
+  const isFullyPaid = displayNetFee > 0 && displayRemaining === 0;
+  const progressPct =
+    displayNetFee > 0
+      ? Math.min(100, Math.round((displayPaid / displayNetFee) * 100))
+      : 0;
+
+  // Total paid (for display only — combining direct + installment payments)
+  const installmentsPaidTotal = studentInstallments
+    .filter((i) => i.status === "paid")
+    .reduce((s, i) => s + (i.paidAmount || 0), 0);
+  const totalPaidDisplay = directFeesPaid + installmentsPaidTotal;
 
   const statusColor: Record<string, string> = {
     paid: "text-emerald-700 bg-emerald-50 border-emerald-200",
@@ -204,6 +220,7 @@ export default function StudentViewPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+      {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
           <Button
@@ -274,19 +291,21 @@ export default function StudentViewPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* Total Paid */}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Total Paid</span>
                 <span className="font-semibold text-emerald-700">
-                  ₹{totalPaid.toLocaleString("en-IN")}
+                  ₹{totalPaidDisplay.toLocaleString("en-IN")}
                 </span>
               </div>
 
-              {totalNetFee > 0 && (
+              {/* Total Fee + Remaining — show if we have any fee data */}
+              {displayNetFee > 0 && (
                 <>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Total Fee</span>
                     <span className="font-medium">
-                      ₹{totalNetFee.toLocaleString("en-IN")}
+                      ₹{displayNetFee.toLocaleString("en-IN")}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
@@ -296,45 +315,65 @@ export default function StudentViewPage() {
                     >
                       {isFullyPaid
                         ? "✓ Fully Paid"
-                        : `₹${totalRemaining.toLocaleString("en-IN")}`}
+                        : `₹${displayRemaining.toLocaleString("en-IN")}`}
                     </span>
                   </div>
+
                   {/* Progress bar */}
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all ${isFullyPaid ? "bg-emerald-500" : "bg-primary"}`}
-                      style={{
-                        width: `${Math.min(100, Math.round((totalPaidFromPlans / totalNetFee) * 100))}%`,
-                      }}
-                    />
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Payment Progress</span>
+                      <span>{progressPct}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${isFullyPaid ? "bg-emerald-500" : "bg-primary"}`}
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
                   </div>
+
+                  {/* Source label */}
+                  <p className="text-xs text-muted-foreground">
+                    {hasFeeplan
+                      ? "Based on fee plan"
+                      : "Based on course fee vs payments"}
+                  </p>
                 </>
               )}
 
+              {/* Fee Plans count */}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Fee Plans</span>
                 <span className="font-medium">{studentPlans.length}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Installments</span>
-                <span className="font-medium">
-                  {studentInstallments.length}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Overdue</span>
-                <span className="font-medium text-red-600">
-                  {
-                    studentInstallments.filter((i) => i.status === "overdue")
-                      .length
-                  }
-                </span>
-              </div>
 
-              {/* Fully paid badge */}
+              {/* Installments count */}
+              {studentInstallments.length > 0 && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Installments</span>
+                    <span className="font-medium">
+                      {studentInstallments.length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Overdue</span>
+                    <span className="font-medium text-red-600">
+                      {
+                        studentInstallments.filter(
+                          (i) => i.status === "overdue",
+                        ).length
+                      }
+                    </span>
+                  </div>
+                </>
+              )}
+
+              {/* Fully paid banner */}
               {isFullyPaid && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-700 font-medium">
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircle className="w-4 h-4 shrink-0" />
                   All fees cleared
                 </div>
               )}
@@ -344,7 +383,7 @@ export default function StudentViewPage() {
 
         {/* ── Right Column ─────────────────────────────────────────────────── */}
         <div className="lg:col-span-2 space-y-5">
-          {/* Personal Info */}
+          {/* Personal Information */}
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -422,7 +461,7 @@ export default function StudentViewPage() {
             </CardContent>
           </Card>
 
-          {/* Fee Payments */}
+          {/* Direct Fee Payments */}
           {studentFees.length > 0 && (
             <Card className="rounded-2xl border-border/50">
               <CardHeader className="pb-2">
@@ -460,6 +499,30 @@ export default function StudentViewPage() {
                       </div>
                     </div>
                   ))}
+
+                  {/* Show remaining from direct payments if no fee plan */}
+                  {!hasFeeplan && courseFeeTotal > 0 && (
+                    <div
+                      className={`flex items-center justify-between rounded-xl px-3 py-2 mt-1 ${
+                        isFullyPaid
+                          ? "bg-emerald-50 border border-emerald-200"
+                          : "bg-amber-50 border border-amber-200"
+                      }`}
+                    >
+                      <span
+                        className={`text-xs font-medium ${isFullyPaid ? "text-emerald-700" : "text-amber-700"}`}
+                      >
+                        {isFullyPaid
+                          ? "✓ Fee fully cleared"
+                          : "Balance remaining"}
+                      </span>
+                      {!isFullyPaid && (
+                        <span className="text-xs font-semibold text-red-600">
+                          ₹{displayRemaining.toLocaleString("en-IN")}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -495,41 +558,47 @@ export default function StudentViewPage() {
                       key={plan.id}
                       className="rounded-xl border border-border/50 p-3 space-y-3"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-start justify-between">
                         <div>
                           <p className="font-medium text-sm">
                             {plan.paymentType === "installment"
-                              ? `${plan.installmentCount} Installments`
-                              : "One-time"}{" "}
-                            Plan
+                              ? `${plan.installmentCount} Installment Plan`
+                              : "One-time Payment Plan"}
                           </p>
-                          <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
-                            <span>
-                              Total: ₹{plan.netFee.toLocaleString("en-IN")}
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs mt-1">
+                            <span className="text-muted-foreground">
+                              Total:{" "}
+                              <span className="font-medium text-foreground">
+                                ₹{plan.netFee.toLocaleString("en-IN")}
+                              </span>
                             </span>
                             <span className="text-emerald-600">
-                              Paid: ₹{planPaid.toLocaleString("en-IN")}
+                              Paid:{" "}
+                              <span className="font-medium">
+                                ₹{planPaid.toLocaleString("en-IN")}
+                              </span>
                             </span>
                             <span
                               className={
                                 planFullyPaid
-                                  ? "text-emerald-600 font-medium"
+                                  ? "text-emerald-600"
                                   : "text-red-500"
                               }
                             >
                               {planFullyPaid
-                                ? "✓ Cleared"
-                                : `Due: ₹${planRemaining.toLocaleString("en-IN")}`}
+                                ? "✓ Fully Cleared"
+                                : `Remaining: ₹${planRemaining.toLocaleString("en-IN")}`}
                             </span>
                           </div>
                         </div>
                         <span
-                          className={`text-sm font-semibold ${planFullyPaid ? "text-emerald-600" : "text-primary"}`}
+                          className={`text-sm font-bold shrink-0 ml-2 ${planFullyPaid ? "text-emerald-600" : "text-primary"}`}
                         >
                           {paidPct}%
                         </span>
                       </div>
 
+                      {/* Progress bar */}
                       <div className="w-full bg-muted rounded-full h-2">
                         <div
                           className={`h-2 rounded-full transition-all ${planFullyPaid ? "bg-emerald-500" : "bg-primary"}`}
@@ -537,6 +606,7 @@ export default function StudentViewPage() {
                         />
                       </div>
 
+                      {/* Installments list */}
                       {planInstallments.length > 0 && (
                         <div className="space-y-1.5 pt-1">
                           {planInstallments.map((inst) => (
@@ -546,11 +616,11 @@ export default function StudentViewPage() {
                             >
                               <div className="flex items-center gap-2">
                                 {inst.status === "paid" ? (
-                                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                 ) : inst.status === "overdue" ? (
-                                  <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                                  <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
                                 ) : (
-                                  <Clock className="w-3.5 h-3.5 text-amber-500" />
+                                  <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                                 )}
                                 <span className="text-xs font-medium">
                                   Installment #{inst.installmentNo}
@@ -577,7 +647,7 @@ export default function StudentViewPage() {
                               </div>
                               <Badge
                                 variant="outline"
-                                className={`text-xs ml-2 ${statusColor[inst.status] || ""}`}
+                                className={`text-xs ml-2 capitalize ${statusColor[inst.status] || ""}`}
                               >
                                 {inst.status}
                               </Badge>
@@ -594,6 +664,7 @@ export default function StudentViewPage() {
         </div>
       </div>
 
+      {/* Edit Dialog */}
       {canEdit && (
         <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
           <DialogContent className="sm:max-w-xl rounded-2xl max-h-[90vh] overflow-y-auto">
