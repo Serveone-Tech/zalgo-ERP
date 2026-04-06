@@ -60,7 +60,7 @@ app.use(
     },
   }),
 );
-app.use(express.urlencoded({ extended: false, limit: "5mb" }));
+app.use(express.urlencoded({ extended: false, limit: "10mb" }));
 
 // --- Session Store ---
 const PgSession = connectPgSimple(session);
