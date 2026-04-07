@@ -931,10 +931,14 @@ export class DatabaseStorage implements IStorage {
     else if (adminBranchIds.length > 0)
       txConditions.push(inArray(transactions.branchId, adminBranchIds));
 
-    const allTransactions = await db
-      .select()
-      .from(transactions)
-      .where(txConditions.length ? and(...txConditions) : undefined);
+    const allTransactions = adminId
+      ? adminBranchIds.length > 0
+        ? await db
+            .select()
+            .from(transactions)
+            .where(inArray(transactions.branchId, adminBranchIds))
+        : [] // No branches = no transactions
+      : await db.select().from(transactions);
     const totalIncome = allTransactions
       .filter((t) => t.type === "Income")
       .reduce((s, t) => s + t.amount, 0);

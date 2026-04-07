@@ -196,6 +196,13 @@ const navigation = [
         module: undefined,
         adminOnly: true,
       },
+      {
+        name: "Organization",
+        href: "/organization",
+        icon: Building2,
+        module: undefined,
+        adminOnly: true,
+      },
     ],
   },
 ];

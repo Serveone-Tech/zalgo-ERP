@@ -35,6 +35,7 @@ import ReportCard from "./pages/report-card";
 import PricingPage from "./pages/pricing";
 import SuperAdminDashboard from "./pages/superadmin";
 import AutomationPage from "./pages/automation";
+import OrganizationSettingsPage from "./pages/organization-settings";
 
 function AccessDenied() {
   const [, navigate] = useLocation();
@@ -265,6 +266,11 @@ function AuthenticatedRouter() {
           </Route>
           <Route path="/backups">
             {() => <ProtectedRoute module="backups" component={BackupsPage} />}
+          </Route>
+          <Route path="/organization">
+            {() => (
+              <ProtectedRoute adminOnly component={OrganizationSettingsPage} />
+            )}
           </Route>
           <Route path="/notifications" component={NotificationsPage} />
           <Route path="/pricing" component={PricingPage} />
