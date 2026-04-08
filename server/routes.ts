@@ -109,6 +109,7 @@ export async function registerRoutes(
   app.use("/api/report-card", reportCardRouter);
   app.use("/api/plans", plansRouter);
   app.use("/api/automation", automationRouter);
+  app.use("/api/automation", automationRouter);
 
   await seedDatabase().catch(console.error);
 

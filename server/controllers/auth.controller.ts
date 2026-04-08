@@ -12,6 +12,7 @@ import {
 import { db } from "../db";
 import { users, organizations } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { notifyNewRegistration } from "../utils/superadmin-notify";
 
 const ROLES = ["admin", "staff", "accountant", "teacher"] as const;
 
@@ -213,6 +214,11 @@ export const AuthController = {
       } as any);
       const { passwordHash: _, ...safeUser } = user;
       res.status(201).json(safeUser);
+      notifyNewRegistration({
+        name: user.name,
+        email: user.email,
+        id: user.id,
+      }).catch(console.error);
     } catch (err) {
       if (err instanceof z.ZodError)
         return res.status(400).json({ message: err.errors[0].message });

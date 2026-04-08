@@ -36,6 +36,7 @@ import PricingPage from "./pages/pricing";
 import SuperAdminDashboard from "./pages/superadmin";
 import AutomationPage from "./pages/automation";
 import OrganizationSettingsPage from "./pages/organization-settings";
+import AutomationHelpPage from "./pages/automation-help";
 
 function AccessDenied() {
   const [, navigate] = useLocation();
@@ -165,14 +166,21 @@ function AuthenticatedRouter() {
     );
   }
 
-  if (!subscriptionLoading && subscription !== null) {
-    const noSub =
-      subscription.status === "none" || subscription.status === "expired";
-    if (noSub && location !== "/pricing") return <PricingPage />;
-  }
+  // Gate 1 & 2: Only for admin role — staff/other users bypass these gates
+  if (user.role === "admin") {
+    // Gate 1: Subscription check
+    if (!subscriptionLoading && subscription) {
+      const noSub =
+        subscription.status === "none" || subscription.status === "expired";
+      if (noSub && location !== "/pricing") {
+        return <PricingPage />;
+      }
+    }
 
-  if (user.isOnboarded === false && subscription?.status === "active") {
-    return <OnboardingPage onComplete={markOnboarded} />;
+    // Gate 2: Onboarding check
+    if (!user.isOnboarded && subscription?.status === "active") {
+      return <OnboardingPage onComplete={markOnboarded} />;
+    }
   }
 
   return (
@@ -272,6 +280,10 @@ function AuthenticatedRouter() {
               <ProtectedRoute adminOnly component={OrganizationSettingsPage} />
             )}
           </Route>
+          <Route path="/automation/help">
+            {() => <ProtectedRoute component={AutomationHelpPage} />}
+          </Route>
+
           <Route path="/notifications" component={NotificationsPage} />
           <Route path="/pricing" component={PricingPage} />
           <Route component={NotFound} />

@@ -28,6 +28,7 @@ import {
   Archive,
   Zap,
   Building2,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -135,6 +136,7 @@ const navigation = [
         module: "communications",
         adminOnly: false,
       },
+      { name: "Setup Guide", href: "/automation/help", icon: HelpCircle },
       {
         name: "ID Cards",
         href: "/idcards",
