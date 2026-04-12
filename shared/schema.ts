@@ -10,7 +10,6 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// ─── Branches ─────────────────────────────────────────────────────────────────
 export const branches = pgTable("branches", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -23,7 +22,6 @@ export const branches = pgTable("branches", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Users (Authentication & Roles) ───────────────────────────────────────────
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -39,22 +37,21 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Leads (Enquiries) ────────────────────────────────────────────────────────
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
   studentName: text("student_name").notNull(),
   parentName: text("parent_name"),
   phone: text("phone").notNull(),
+  email: text("email"),
   parentPhone: text("parent_phone"),
   address: text("address"),
   courseInterested: text("course_interested").notNull(),
   status: text("status").notNull().default("New"),
   branchId: integer("branch_id").references(() => branches.id),
-  adminId: integer("admin_id").references(() => users.id), // ← ADD
+  adminId: integer("admin_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Students ─────────────────────────────────────────────────────────────────
 export const students = pgTable("students", {
   id: serial("id").primaryKey(),
   enrollmentNo: text("enrollment_no").notNull().unique(),
@@ -68,11 +65,10 @@ export const students = pgTable("students", {
   status: text("status").notNull().default("Active"),
   courseInterested: text("course_interested"),
   branchId: integer("branch_id").references(() => branches.id),
-  adminId: integer("admin_id").references(() => users.id), // ← ADD
+  adminId: integer("admin_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Teachers ─────────────────────────────────────────────────────────────────
 export const teachers = pgTable("teachers", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -82,11 +78,10 @@ export const teachers = pgTable("teachers", {
   qualification: text("qualification"),
   status: text("status").notNull().default("Active"),
   branchId: integer("branch_id").references(() => branches.id),
-  adminId: integer("admin_id").references(() => users.id), // ← ADD
+  adminId: integer("admin_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Courses ──────────────────────────────────────────────────────────────────
 export const courses = pgTable("courses", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -98,7 +93,6 @@ export const courses = pgTable("courses", {
   adminId: integer("admin_id").references(() => users.id),
 });
 
-// ─── Enrollments ──────────────────────────────────────────────────────────────
 export const enrollments = pgTable("enrollments", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id")
@@ -121,7 +115,6 @@ export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
   }),
 }));
 
-// ─── Fees (Payments) ──────────────────────────────────────────────────────────
 export const fees = pgTable("fees", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id")
@@ -146,7 +139,6 @@ export const feesRelations = relations(fees, ({ one }) => ({
   course: one(courses, { fields: [fees.courseId], references: [courses.id] }),
 }));
 
-// ─── Fee Plans ────────────────────────────────────────────────────────────────
 export const feePlans = pgTable("fee_plans", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id")
@@ -166,7 +158,6 @@ export const feePlans = pgTable("fee_plans", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Fee Installments ─────────────────────────────────────────────────────────
 export const feeInstallments = pgTable("fee_installments", {
   id: serial("id").primaryKey(),
   feePlanId: integer("fee_plan_id")
@@ -186,7 +177,6 @@ export const feeInstallments = pgTable("fee_installments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Assignments ──────────────────────────────────────────────────────────────
 export const assignments = pgTable("assignments", {
   id: serial("id").primaryKey(),
   courseId: integer("course_id")
@@ -198,7 +188,6 @@ export const assignments = pgTable("assignments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Exams ────────────────────────────────────────────────────────────────────
 export const exams = pgTable("exams", {
   id: serial("id").primaryKey(),
   courseId: integer("course_id")
@@ -209,7 +198,6 @@ export const exams = pgTable("exams", {
   maxMarks: integer("max_marks").notNull(),
 });
 
-// ─── Inventory ────────────────────────────────────────────────────────────────
 export const inventory = pgTable("inventory", {
   id: serial("id").primaryKey(),
   itemName: text("item_name").notNull(),
@@ -219,7 +207,6 @@ export const inventory = pgTable("inventory", {
   lastUpdated: timestamp("last_updated").defaultNow(),
 });
 
-// ─── Transactions ─────────────────────────────────────────────────────────────
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
   type: text("type").notNull(),
@@ -230,7 +217,6 @@ export const transactions = pgTable("transactions", {
   branchId: integer("branch_id").references(() => branches.id),
 });
 
-// ─── Communications ───────────────────────────────────────────────────────────
 export const communications = pgTable("communications", {
   id: serial("id").primaryKey(),
   recipientId: integer("recipient_id").notNull(),
@@ -242,7 +228,6 @@ export const communications = pgTable("communications", {
   sentAt: timestamp("sent_at").defaultNow(),
 });
 
-// ─── Notifications ────────────────────────────────────────────────────────────
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -255,7 +240,6 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Attendance Records ───────────────────────────────────────────────────────
 export const attendanceRecords = pgTable("attendance_records", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id")
@@ -269,7 +253,6 @@ export const attendanceRecords = pgTable("attendance_records", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Homework Records ─────────────────────────────────────────────────────────
 export const homeworkRecords = pgTable("homework_records", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id")
@@ -282,7 +265,6 @@ export const homeworkRecords = pgTable("homework_records", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Test Results ─────────────────────────────────────────────────────────────
 export const testResults = pgTable("test_results", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id")
@@ -301,7 +283,6 @@ export const testResults = pgTable("test_results", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Batch History ────────────────────────────────────────────────────────────
 export const batchHistory = pgTable("batch_history", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id")
@@ -314,7 +295,6 @@ export const batchHistory = pgTable("batch_history", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Additional Remarks ───────────────────────────────────────────────────────
 export const studentRemarks = pgTable("student_remarks", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id")
@@ -326,7 +306,6 @@ export const studentRemarks = pgTable("student_remarks", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ─── Plans (SuperAdmin manages these) ────────────────────────────────────────
 export const plans = pgTable("plans", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -349,7 +328,6 @@ export const plans = pgTable("plans", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// ─── Organizations ────────────────────────────────────────────────────────────
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
@@ -370,7 +348,6 @@ export const organizations = pgTable("organizations", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// ─── Subscriptions ────────────────────────────────────────────────────────────
 export const subscriptions = pgTable("subscriptions", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
@@ -392,7 +369,6 @@ export const subscriptions = pgTable("subscriptions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// ─── Payments ─────────────────────────────────────────────────────────────────
 export const payments = pgTable("payments", {
   id: serial("id").primaryKey(),
   subscriptionId: integer("subscription_id").references(() => subscriptions.id),
@@ -412,6 +388,32 @@ export const payments = pgTable("payments", {
   description: text("description"),
   paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ─── Automation Credentials ───────────────────────────────────────────────────
+export const automationCredentials = pgTable("automation_credentials", {
+  id: serial("id").primaryKey(),
+  adminId: integer("admin_id")
+    .references(() => users.id)
+    .notNull(),
+  channel: text("channel").notNull(),
+  config: text("config").notNull(),
+  enabled: boolean("enabled").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ─── Automation Triggers ──────────────────────────────────────────────────────
+export const automationTriggers = pgTable("automation_triggers", {
+  id: serial("id").primaryKey(),
+  adminId: integer("admin_id")
+    .references(() => users.id)
+    .notNull(),
+  triggerId: text("trigger_id").notNull(),
+  enabled: boolean("enabled").default(false),
+  channels: text("channels").array().default([]),
+  template: text("template"),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // ─── Insert Schemas ───────────────────────────────────────────────────────────
@@ -537,6 +539,8 @@ export type Plan = typeof plans.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type Organization = typeof organizations.$inferSelect;
+export type AutomationCredential = typeof automationCredentials.$inferSelect;
+export type AutomationTrigger = typeof automationTriggers.$inferSelect;
 
 export type InsertBranch = z.infer<typeof insertBranchSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;

@@ -4,10 +4,29 @@ import { storage } from "../storage";
 import { api } from "@shared/routes";
 import { parsePeriodToDateRange } from "../utils/period";
 import { z } from "zod";
+import {
+  triggerNewLead,
+  triggerLeadConverted,
+} from "../utils/automation-trigger";
+import { db } from "../db";
+import { organizations } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 function getAdminId(req: Request): number {
   const s = req.session as any;
   return s.adminId ?? s.userId;
+}
+
+async function getInstituteName(adminId: number): Promise<string> {
+  try {
+    const [org] = await db
+      .select({ name: organizations.name })
+      .from(organizations)
+      .where(eq(organizations.userId, adminId));
+    return org?.name || "Your Institute";
+  } catch {
+    return "Your Institute";
+  }
 }
 
 export const LeadsController = {
@@ -40,14 +59,25 @@ export const LeadsController = {
       const input = api.leads.create.input.parse(req.body);
       const lead = await storage.createLead({ ...input, adminId } as any);
       res.status(201).json(lead);
+
+      // Fire automation — non-blocking (response already sent)
+      getInstituteName(adminId).then((instituteName) => {
+        triggerNewLead(adminId, {
+          studentName: lead.studentName,
+          phone: lead.phone,
+          email: (lead as any).email || null,
+          courseInterested: lead.courseInterested,
+          instituteName,
+        }).catch((e) =>
+          console.error("[Automation] new_lead failed:", e.message),
+        );
+      });
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res
-          .status(400)
-          .json({
-            message: err.errors[0].message,
-            field: err.errors[0].path.join("."),
-          });
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join("."),
+        });
       throw err;
     }
   },
@@ -61,7 +91,6 @@ export const LeadsController = {
       // Auto-create student when lead is marked Converted
       if (input.status === "Converted") {
         const existingLead = await storage.getLead(leadId);
-
         if (existingLead && existingLead.status !== "Converted") {
           const existingStudents = await storage.getStudents({ adminId });
           const alreadyExists = existingStudents.some(
@@ -69,7 +98,7 @@ export const LeadsController = {
           );
 
           if (!alreadyExists) {
-            await storage.createStudent({
+            const newStudent = await storage.createStudent({
               enrollmentNo: `ZIC${Date.now()}-${Math.floor(Math.random() * 999)}`,
               name: existingLead.studentName,
               email: null,
@@ -83,6 +112,19 @@ export const LeadsController = {
               courseInterested: existingLead.courseInterested ?? null,
               adminId,
             } as any);
+
+            // Fire lead_converted trigger — non-blocking
+            getInstituteName(adminId).then((instituteName) => {
+              triggerLeadConverted(adminId, {
+                name: newStudent.name,
+                phone: newStudent.phone,
+                email: newStudent.email,
+                courseInterested: newStudent.courseInterested,
+                instituteName,
+              }).catch((e) =>
+                console.error("[Automation] lead_converted failed:", e.message),
+              );
+            });
           }
         }
       }
@@ -91,12 +133,10 @@ export const LeadsController = {
       res.json(lead);
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res
-          .status(400)
-          .json({
-            message: err.errors[0].message,
-            field: err.errors[0].path.join("."),
-          });
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join("."),
+        });
       throw err;
     }
   },

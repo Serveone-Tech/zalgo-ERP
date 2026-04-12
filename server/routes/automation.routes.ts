@@ -4,41 +4,7 @@ import { requireAuth } from "../controllers/auth.controller";
 import { db } from "../db";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
-import {
-  pgTable,
-  serial,
-  integer,
-  text,
-  boolean,
-  jsonb,
-  timestamp,
-} from "drizzle-orm/pg-core";
-import { users } from "@shared/schema";
-
-// ── Inline tables (add to schema.ts later via db:push) ───────────────────────
-export const automationCredentials = pgTable("automation_credentials", {
-  id: serial("id").primaryKey(),
-  adminId: integer("admin_id")
-    .references(() => users.id)
-    .notNull(),
-  channel: text("channel").notNull(), // email | sms | whatsapp
-  config: text("config").notNull(), // JSON string (encrypted in future)
-  enabled: boolean("enabled").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export const automationTriggers = pgTable("automation_triggers", {
-  id: serial("id").primaryKey(),
-  adminId: integer("admin_id")
-    .references(() => users.id)
-    .notNull(),
-  triggerId: text("trigger_id").notNull(),
-  enabled: boolean("enabled").default(false),
-  channels: text("channels").array().default([]),
-  template: text("template"),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+import { automationCredentials, automationTriggers } from "@shared/schema";
 
 const router = Router();
 
@@ -47,7 +13,7 @@ function getAdminId(req: any): number {
   return s.adminId ?? s.userId;
 }
 
-// ── GET credentials ───────────────────────────────────────────────────────────
+// GET credentials
 router.get("/credentials", requireAuth, async (req, res) => {
   try {
     const adminId = getAdminId(req);
@@ -60,9 +26,20 @@ router.get("/credentials", requireAuth, async (req, res) => {
     for (const row of rows) {
       try {
         const config = JSON.parse(row.config);
-        // Mask sensitive keys before sending to frontend
-        const masked = maskCredentials(config);
-        result[row.channel] = { ...masked, enabled: row.enabled };
+        result[row.channel] = {
+          enabled: row.enabled,
+          sendgridApiKey: config.sendgridApiKey
+            ? config.sendgridApiKey.substring(0, 8) + "••••••"
+            : undefined,
+          fromEmail: config.fromEmail,
+          fromName: config.fromName,
+          twilioAccountSid: config.twilioAccountSid,
+          twilioAuthToken: config.twilioAuthToken
+            ? config.twilioAuthToken.substring(0, 6) + "••••••"
+            : undefined,
+          twilioPhoneNumber: config.twilioPhoneNumber,
+          twilioWhatsappNumber: config.twilioWhatsappNumber,
+        };
       } catch {}
     }
     res.json(result);
@@ -71,7 +48,7 @@ router.get("/credentials", requireAuth, async (req, res) => {
   }
 });
 
-// ── PUT credentials ───────────────────────────────────────────────────────────
+// PUT credentials
 router.put("/credentials", requireAuth, async (req, res) => {
   try {
     const adminId = getAdminId(req);
@@ -79,11 +56,9 @@ router.put("/credentials", requireAuth, async (req, res) => {
       channel: z.enum(["email", "sms", "whatsapp"]),
       config: z.object({
         enabled: z.boolean(),
-        // Email
         sendgridApiKey: z.string().optional(),
         fromEmail: z.string().optional(),
         fromName: z.string().optional(),
-        // SMS / WhatsApp
         twilioAccountSid: z.string().optional(),
         twilioAuthToken: z.string().optional(),
         twilioPhoneNumber: z.string().optional(),
@@ -93,10 +68,9 @@ router.put("/credentials", requireAuth, async (req, res) => {
 
     const { channel, config } = schema.parse(req.body);
     const { enabled, ...rest } = config;
-    const configStr = JSON.stringify(rest);
 
-    // Upsert
-    const existing = await db
+    // Fetch existing to preserve masked values
+    const [existing] = await db
       .select()
       .from(automationCredentials)
       .where(
@@ -106,7 +80,18 @@ router.put("/credentials", requireAuth, async (req, res) => {
         ),
       );
 
-    if (existing.length > 0) {
+    let finalConfig = { ...rest };
+    if (existing) {
+      const existingConfig = JSON.parse(existing.config);
+      if (rest.sendgridApiKey?.includes("••"))
+        finalConfig.sendgridApiKey = existingConfig.sendgridApiKey;
+      if (rest.twilioAuthToken?.includes("••"))
+        finalConfig.twilioAuthToken = existingConfig.twilioAuthToken;
+    }
+
+    const configStr = JSON.stringify(finalConfig);
+
+    if (existing) {
       await db
         .update(automationCredentials)
         .set({ config: configStr, enabled, updatedAt: new Date() })
@@ -130,7 +115,7 @@ router.put("/credentials", requireAuth, async (req, res) => {
   }
 });
 
-// ── GET triggers ──────────────────────────────────────────────────────────────
+// GET triggers
 router.get("/triggers", requireAuth, async (req, res) => {
   try {
     const adminId = getAdminId(req);
@@ -153,7 +138,7 @@ router.get("/triggers", requireAuth, async (req, res) => {
   }
 });
 
-// ── PUT triggers ──────────────────────────────────────────────────────────────
+// PUT triggers
 router.put("/triggers", requireAuth, async (req, res) => {
   try {
     const adminId = getAdminId(req);
@@ -168,7 +153,7 @@ router.put("/triggers", requireAuth, async (req, res) => {
 
     const { triggerId, config } = schema.parse(req.body);
 
-    const existing = await db
+    const [existing] = await db
       .select()
       .from(automationTriggers)
       .where(
@@ -178,7 +163,7 @@ router.put("/triggers", requireAuth, async (req, res) => {
         ),
       );
 
-    if (existing.length > 0) {
+    if (existing) {
       await db
         .update(automationTriggers)
         .set({
@@ -194,13 +179,15 @@ router.put("/triggers", requireAuth, async (req, res) => {
           ),
         );
     } else {
-      await db.insert(automationTriggers).values({
-        adminId,
-        triggerId,
-        enabled: config.enabled,
-        channels: config.channels,
-        template: config.template || null,
-      });
+      await db
+        .insert(automationTriggers)
+        .values({
+          adminId,
+          triggerId,
+          enabled: config.enabled,
+          channels: config.channels,
+          template: config.template || null,
+        });
     }
 
     res.json({ success: true });
@@ -211,7 +198,7 @@ router.put("/triggers", requireAuth, async (req, res) => {
   }
 });
 
-// ── POST manual send ──────────────────────────────────────────────────────────
+// POST manual send
 router.post("/send", requireAuth, async (req, res) => {
   try {
     const adminId = getAdminId(req);
@@ -224,7 +211,6 @@ router.post("/send", requireAuth, async (req, res) => {
 
     const { channel, to, subject, message } = schema.parse(req.body);
 
-    // Get credentials for this admin
     const [credRow] = await db
       .select()
       .from(automationCredentials)
@@ -238,16 +224,40 @@ router.post("/send", requireAuth, async (req, res) => {
     if (!credRow || !credRow.enabled) {
       return res
         .status(400)
-        .json({ message: `${channel} channel is not configured or disabled` });
+        .json({ message: `${channel} is not configured or disabled` });
     }
 
     const creds = JSON.parse(credRow.config);
-    const result = await sendMessage({ channel, to, subject, message, creds });
 
-    if (!result.success) {
-      return res
-        .status(500)
-        .json({ message: result.error || "Failed to send message" });
+    if (channel === "email") {
+      const nodemailer = await import("nodemailer");
+      const transporter = nodemailer.default.createTransport({
+        host: "smtp.sendgrid.net",
+        port: 587,
+        auth: { user: "apikey", pass: creds.sendgridApiKey },
+      });
+      await transporter.sendMail({
+        from: creds.fromName
+          ? `"${creds.fromName}" <${creds.fromEmail}>`
+          : creds.fromEmail,
+        to,
+        subject: subject || "Message from your institute",
+        text: message,
+      });
+    } else {
+      const from =
+        channel === "whatsapp"
+          ? creds.twilioWhatsappNumber
+          : creds.twilioPhoneNumber;
+      const twilio = (await import("twilio")).default;
+      const client = twilio(creds.twilioAccountSid, creds.twilioAuthToken);
+      let cleanTo = to.replace(/\D/g, "");
+      if (cleanTo.startsWith("0")) cleanTo = cleanTo.slice(1);
+      if (!cleanTo.startsWith("91") && cleanTo.length === 10)
+        cleanTo = "91" + cleanTo;
+      const toFormatted =
+        channel === "whatsapp" ? `whatsapp:+${cleanTo}` : `+${cleanTo}`;
+      await client.messages.create({ body: message, from, to: toFormatted });
     }
 
     res.json({ success: true, message: "Message sent successfully" });
@@ -257,98 +267,5 @@ router.post("/send", requireAuth, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-
-// ── Send message helper ───────────────────────────────────────────────────────
-async function sendMessage({
-  channel,
-  to,
-  subject,
-  message,
-  creds,
-}: {
-  channel: string;
-  to: string;
-  subject?: string;
-  message: string;
-  creds: any;
-}): Promise<{ success: boolean; error?: string }> {
-  if (channel === "email") {
-    try {
-      const nodemailer = await import("nodemailer");
-      const transporter = nodemailer.default.createTransport({
-        host: "smtp.sendgrid.net",
-        port: 587,
-        auth: {
-          user: "apikey",
-          pass: creds.sendgridApiKey,
-        },
-      });
-      await transporter.sendMail({
-        from: creds.fromName
-          ? `"${creds.fromName}" <${creds.fromEmail}>`
-          : creds.fromEmail,
-        to,
-        subject: subject || "Message from your institute",
-        text: message,
-        html: `<div style="font-family:sans-serif;max-width:600px;margin:auto">
-          <p>${message.replace(/\n/g, "<br>")}</p>
-        </div>`,
-      });
-      return { success: true };
-    } catch (err: any) {
-      console.error("[Automation Email]", err.message);
-      return { success: false, error: err.message };
-    }
-  }
-
-  if (channel === "sms" || channel === "whatsapp") {
-    try {
-      const twilio = (await import("twilio")).default;
-      const client = twilio(creds.twilioAccountSid, creds.twilioAuthToken);
-
-      const from =
-        channel === "whatsapp"
-          ? creds.twilioWhatsappNumber // format: whatsapp:+14155238886
-          : creds.twilioPhoneNumber;
-
-      const toFormatted =
-        channel === "whatsapp"
-          ? `whatsapp:${to.startsWith("+") ? to : "+" + to}`
-          : to;
-
-      await client.messages.create({
-        body: message,
-        from,
-        to: toFormatted,
-      });
-      return { success: true };
-    } catch (err: any) {
-      console.error("[Automation Twilio]", err.message);
-      return { success: false, error: err.message };
-    }
-  }
-
-  return { success: false, error: "Unknown channel" };
-}
-
-// ── Mask sensitive keys ───────────────────────────────────────────────────────
-function maskCredentials(config: any): any {
-  const mask = (val: string) => (val ? val.substring(0, 6) + "••••••••" : "");
-  return {
-    ...config,
-    sendgridApiKey: config.sendgridApiKey
-      ? mask(config.sendgridApiKey)
-      : undefined,
-    twilioAuthToken: config.twilioAuthToken
-      ? mask(config.twilioAuthToken)
-      : undefined,
-    // Keep these visible
-    fromEmail: config.fromEmail,
-    fromName: config.fromName,
-    twilioAccountSid: config.twilioAccountSid,
-    twilioPhoneNumber: config.twilioPhoneNumber,
-    twilioWhatsappNumber: config.twilioWhatsappNumber,
-  };
-}
 
 export default router;

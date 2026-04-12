@@ -578,17 +578,17 @@ function TriggerRow({
           {local.enabled && (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="text-xs text-primary hover:underline"
+              className="text-xs text-primary hover:underline font-medium"
             >
-              {expanded ? "Close" : "Configure"}
+              {expanded ? "▲ Close" : "▼ Configure"}
             </button>
           )}
           <Switch
             checked={local.enabled}
             onCheckedChange={(v) => {
-              const updated = { ...local, enabled: v };
-              setLocal(updated);
-              onSave(updated);
+              setLocal((f) => ({ ...f, enabled: v }));
+              // Auto-expand when enabling so user can configure channels
+              if (v) setExpanded(true);
             }}
           />
         </div>
@@ -663,7 +663,18 @@ function TriggerRow({
             </p>
           </div>
 
-          <Button size="sm" onClick={() => onSave(local)} className="gap-1.5">
+          {local.enabled && local.channels.length === 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
+              ⚠️ Please select at least one channel above before saving.
+            </div>
+          )}
+
+          <Button
+            size="sm"
+            onClick={() => onSave(local)}
+            disabled={local.enabled && local.channels.length === 0}
+            className="gap-1.5"
+          >
             <CheckCircle2 className="w-3.5 h-3.5" /> Save Trigger
           </Button>
         </div>

@@ -361,6 +361,7 @@ function LeadForm({ onSuccess }: { onSuccess: () => void }) {
         studentName: formData.get("studentName") as string,
         parentName: formData.get("parentName") as string,
         phone: formData.get("phone") as string,
+        email: (formData.get("email") as string) || null,
         parentPhone: formData.get("parentPhone") as string,
         address: formData.get("address") as string,
         courseInterested,
@@ -420,6 +421,17 @@ function LeadForm({ onSuccess }: { onSuccess: () => void }) {
             type="tel"
             required
             className="rounded-xl"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Student Email</Label>
+          <Input
+            data-testid="input-email"
+            id="email"
+            name="email"
+            type="email"
+            className="rounded-xl"
+            placeholder="student@example.com"
           />
         </div>
         <div className="space-y-2">
