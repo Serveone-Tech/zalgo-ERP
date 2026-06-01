@@ -55,6 +55,7 @@ const ALL_MODULES = [
   { key: "idcards", label: "ID Cards" },
   { key: "report-card", label: "Report Cards" },
   { key: "backups", label: "Backups" },
+  { key: "live_classes", label: "Live Classes (Premium)" },
 ];
 
 function usePlans() {

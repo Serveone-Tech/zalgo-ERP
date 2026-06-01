@@ -37,6 +37,9 @@ import SuperAdminDashboard from "./pages/superadmin";
 import AutomationPage from "./pages/automation";
 import OrganizationSettingsPage from "./pages/organization-settings";
 import AutomationHelpPage from "./pages/automation-help";
+import LiveClassesPage from "@/pages/live-classes";
+import LiveClassStudioPage from "@/pages/live-class-studio";
+import LiveClassWatchPage from "@/pages/live-class-watch";
 
 function AccessDenied() {
   const [, navigate] = useLocation();
@@ -282,6 +285,17 @@ function AuthenticatedRouter() {
           </Route>
           <Route path="/automation/help">
             {() => <ProtectedRoute component={AutomationHelpPage} />}
+          </Route>
+          <Route path="/live-classes">
+            {() => <ProtectedRoute adminOnly component={LiveClassesPage} />}
+          </Route>
+          <Route path="/live-classes/:id/studio">
+            {() => <ProtectedRoute adminOnly component={LiveClassStudioPage} />}
+          </Route>
+          <Route path="/live-classes/:id/watch">
+            {() => (
+              <ProtectedRoute module="live_classes" component={LiveClassWatchPage} />
+            )}
           </Route>
 
           <Route path="/notifications" component={NotificationsPage} />

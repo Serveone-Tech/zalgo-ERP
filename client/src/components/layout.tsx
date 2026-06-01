@@ -29,6 +29,7 @@ import {
   Zap,
   Building2,
   HelpCircle,
+  Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -171,6 +172,18 @@ const navigation = [
         icon: CreditCard,
         module: "report-cards",
         adminOnly: false,
+      },
+    ],
+  },
+  {
+    group: "Premium",
+    items: [
+      {
+        name: "Live Classes",
+        href: "/live-classes",
+        icon: Video,
+        module: "live_classes",
+        adminOnly: true,
       },
     ],
   },

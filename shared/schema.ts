@@ -567,3 +567,25 @@ export type InsertPlan = z.infer<typeof insertPlanSchema>;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+
+// ─── Live Classes ─────────────────────────────────────────────────────────────
+export const liveClasses = pgTable("live_classes", {
+  id: serial("id").primaryKey(),
+  adminId: integer("admin_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description"),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  durationMinutes: integer("duration_minutes").notNull().default(60),
+  status: text("status").notNull().default("scheduled"),
+  dailyRoomName: text("daily_room_name"),
+  dailyRoomUrl: text("daily_room_url"),
+  viewerCount: integer("viewer_count").default(0),
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertLiveClassSchema = createInsertSchema(liveClasses);
+export type LiveClass = typeof liveClasses.$inferSelect;
+export type InsertLiveClass = typeof liveClasses.$inferInsert;
