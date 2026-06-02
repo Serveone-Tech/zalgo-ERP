@@ -40,6 +40,13 @@ import AutomationHelpPage from "./pages/automation-help";
 import LiveClassesPage from "@/pages/live-classes";
 import LiveClassStudioPage from "@/pages/live-class-studio";
 import LiveClassWatchPage from "@/pages/live-class-watch";
+import StudentRegisterPage from "@/pages/student-register";
+import { StudentLayout } from "@/components/student-layout";
+import StudentDashboard from "@/pages/student-portal/dashboard";
+import StudentLiveClassesPage from "@/pages/student-portal/live-classes";
+import StudentAttendancePage from "@/pages/student-portal/attendance";
+import StudentExamsPage from "@/pages/student-portal/exams";
+import StudentFeesPage from "@/pages/student-portal/fees";
 
 function AccessDenied() {
   const [, navigate] = useLocation();
@@ -152,7 +159,23 @@ function AuthenticatedRouter() {
     );
 
   if (location === "/register") return <RegisterPage />;
+  if (location === "/student-register") return <StudentRegisterPage />;
   if (!user) return <LoginPage />;
+
+  if (user.role === "student") {
+    return (
+      <StudentLayout>
+        <Switch>
+          <Route path="/student" component={StudentDashboard} />
+          <Route path="/student/live-classes" component={StudentLiveClassesPage} />
+          <Route path="/student/attendance" component={StudentAttendancePage} />
+          <Route path="/student/exams" component={StudentExamsPage} />
+          <Route path="/student/fees" component={StudentFeesPage} />
+          <Route>{() => { window.location.replace("/student"); return null; }}</Route>
+        </Switch>
+      </StudentLayout>
+    );
+  }
 
   if (user.role === "superadmin") {
     return (

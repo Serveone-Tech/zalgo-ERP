@@ -66,6 +66,9 @@ export const students = pgTable("students", {
   courseInterested: text("course_interested"),
   branchId: integer("branch_id").references(() => branches.id),
   adminId: integer("admin_id").references(() => users.id),
+  userId: integer("user_id").references(() => users.id),
+  canWatchLiveClasses: boolean("can_watch_live_classes").default(true),
+  canWatchRecordings: boolean("can_watch_recordings").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -577,11 +580,15 @@ export const liveClasses = pgTable("live_classes", {
   scheduledAt: timestamp("scheduled_at").notNull(),
   durationMinutes: integer("duration_minutes").notNull().default(60),
   status: text("status").notNull().default("scheduled"),
+  courseId: integer("course_id").references(() => courses.id),
   dailyRoomName: text("daily_room_name"),
   dailyRoomUrl: text("daily_room_url"),
   viewerCount: integer("viewer_count").default(0),
   startedAt: timestamp("started_at"),
   endedAt: timestamp("ended_at"),
+  recordingUrl: text("recording_url"),
+  recordingId: text("recording_id"),
+  recordingAllowed: boolean("recording_allowed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

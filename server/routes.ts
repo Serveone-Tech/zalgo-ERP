@@ -25,6 +25,7 @@ import reportCardRouter from "./routes/report-card.routes";
 import plansRouter from "./routes/plans.routes";
 import automationRouter from "./routes/automation.routes";
 import liveClassesRouter from "./routes/live-classes.routes";
+import studentPortalRouter from "./routes/student-portal.routes";
 import { z } from "zod";
 import { api } from "@shared/routes";
 import { Router } from "express";
@@ -111,6 +112,7 @@ export async function registerRoutes(
   app.use("/api/plans", plansRouter);
   app.use("/api/automation", automationRouter);
   app.use("/api/live-classes", liveClassesRouter);
+  app.use("/api/student-portal", studentPortalRouter);
 
   await seedDatabase().catch(console.error);
 

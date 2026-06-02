@@ -21,8 +21,12 @@ import {
   Mic,
   Camera,
   X,
-  Trash2,
   AlertCircle,
+  PlayCircle,
+  Shield,
+  ShieldOff,
+  RefreshCw,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,7 +54,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import type { LiveClass } from "@shared/schema";
+import type { LiveClass as LiveClassBase } from "@shared/schema";
+type LiveClass = LiveClassBase & { recordingUrl?: string | null; recordingAllowed?: boolean | null; courseName?: string | null };
 
 // ─── Premium Gate ─────────────────────────────────────────────────────────────
 function PremiumGate() {
@@ -129,6 +134,7 @@ const scheduleSchema = z.object({
   scheduleDate: z.string().min(1, "Date is required"),
   scheduleTime: z.string().min(1, "Time is required"),
   durationMinutes: z.coerce.number().min(15).max(480),
+  courseId: z.string().optional(),
 });
 type ScheduleForm = z.infer<typeof scheduleSchema>;
 
@@ -140,6 +146,7 @@ export default function LiveClassesPage() {
   const queryClient = useQueryClient();
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<"classes" | "students">("classes");
 
   if (!canUseModule("live_classes")) return <PremiumGate />;
 
@@ -149,6 +156,10 @@ export default function LiveClassesPage() {
 
   const { data: setupStatus } = useQuery<{ configured: boolean }>({
     queryKey: ["/api/live-classes/setup-status"],
+  });
+
+  const { data: coursesList = [] } = useQuery<{ id: number; name: string }[]>({
+    queryKey: ["/api/courses"],
   });
 
   const form = useForm<ScheduleForm>({
@@ -167,6 +178,7 @@ export default function LiveClassesPage() {
           description: data.description,
           durationMinutes: data.durationMinutes,
           scheduledAt,
+          courseId: data.courseId && data.courseId !== "all" ? Number(data.courseId) : null,
         }),
       });
       if (!res.ok) {
@@ -181,6 +193,42 @@ export default function LiveClassesPage() {
       setScheduleOpen(false);
       form.reset();
       toast({ title: "Class scheduled!", description: "Your live class has been created." });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const { data: studentList = [] } = useQuery<{
+    id: number; name: string; enrollmentNo: string; email: string | null;
+    userId: number | null; canWatchLiveClasses: boolean | null; canWatchRecordings: boolean | null;
+  }[]>({
+    queryKey: ["/api/live-classes/students"],
+    enabled: activeTab === "students",
+  });
+
+  const permissionMutation = useMutation({
+    mutationFn: async ({ studentId, field, value }: { studentId: number; field: string; value: boolean }) => {
+      const res = await fetch(`/api/live-classes/students/${studentId}/permissions`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (!res.ok) throw new Error((await res.json()).message);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/live-classes/students"] }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const saveRecordingMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/live-classes/${id}/recording/save`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message);
+      return json;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/live-classes"] });
+      if (data.recordingUrl) toast({ title: "Recording saved!", description: "Students can now watch the recording." });
+      else toast({ title: "Processing", description: data.message ?? "Recording is still being processed by Daily.co." });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -232,8 +280,21 @@ export default function LiveClassesPage() {
         </Button>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 border-b">
+        {(["classes", "students"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 text-sm font-medium capitalize border-b-2 transition-colors ${activeTab === tab ? "border-violet-600 text-violet-600" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          >
+            {tab === "classes" ? <span className="flex items-center gap-1.5"><Video className="w-3.5 h-3.5" />Classes</span> : <span className="flex items-center gap-1.5"><GraduationCap className="w-3.5 h-3.5" />Student Access</span>}
+          </button>
+        ))}
+      </div>
+
       {/* Setup warning */}
-      {setupStatus && !setupStatus.configured && (
+      {activeTab === "classes" && setupStatus && !setupStatus.configured && (
         <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
           <div>
@@ -249,7 +310,54 @@ export default function LiveClassesPage() {
         </div>
       )}
 
-      {isLoading && (
+      {activeTab === "students" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Manage which students can watch live classes and recordings. Only students who have registered their portal account are shown with active status.</p>
+          </div>
+          {studentList.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">No students found</div>
+          ) : (
+            <div className="space-y-2">
+              {studentList.map((s) => (
+                <div key={s.id} className="flex items-center gap-4 rounded-xl border bg-card p-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium">{s.name}</p>
+                    <p className="text-xs text-muted-foreground">{s.enrollmentNo}{s.email ? ` • ${s.email}` : ""}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {s.userId ? (
+                      <span className="text-xs text-green-600 font-medium bg-green-50 border border-green-200 rounded-full px-2 py-0.5">Registered</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">Not registered</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      title="Live class access"
+                      onClick={() => permissionMutation.mutate({ studentId: s.id, field: "canWatchLiveClasses", value: !(s.canWatchLiveClasses ?? true) })}
+                      className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${(s.canWatchLiveClasses ?? true) ? "bg-violet-50 border-violet-200 text-violet-700" : "bg-muted border-transparent text-muted-foreground"}`}
+                    >
+                      {(s.canWatchLiveClasses ?? true) ? <Shield className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}
+                      Live
+                    </button>
+                    <button
+                      title="Recording access"
+                      onClick={() => permissionMutation.mutate({ studentId: s.id, field: "canWatchRecordings", value: !(s.canWatchRecordings ?? true) })}
+                      className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${(s.canWatchRecordings ?? true) ? "bg-violet-50 border-violet-200 text-violet-700" : "bg-muted border-transparent text-muted-foreground"}`}
+                    >
+                      {(s.canWatchRecordings ?? true) ? <Shield className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}
+                      Rec
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "classes" && isLoading && (
         <div className="flex items-center justify-center h-40 text-muted-foreground">
           <Wifi className="w-5 h-5 animate-pulse mr-2" />
           Loading classes...
@@ -257,7 +365,7 @@ export default function LiveClassesPage() {
       )}
 
       {/* Live now */}
-      {liveClasses.length > 0 && (
+      {activeTab === "classes" && liveClasses.length > 0 && (
         <section>
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             Live Now
@@ -276,46 +384,40 @@ export default function LiveClassesPage() {
       )}
 
       {/* Upcoming */}
-      {upcomingClasses.length > 0 && (
+      {activeTab === "classes" && upcomingClasses.length > 0 && (
         <section>
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-            Upcoming
-          </h2>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Upcoming</h2>
           <div className="space-y-3">
             {upcomingClasses.map((cls) => (
-              <ClassCard
-                key={cls.id}
-                cls={cls}
-                canGoLive={canGoLive(cls)}
-                onGoLive={() => navigate(`/live-classes/${cls.id}/studio`)}
-                onCancel={() => setCancelTarget(cls.id)}
-              />
+              <ClassCard key={cls.id} cls={cls} canGoLive={canGoLive(cls)} onGoLive={() => navigate(`/live-classes/${cls.id}/studio`)} onCancel={() => setCancelTarget(cls.id)} />
             ))}
           </div>
         </section>
       )}
 
       {/* Past */}
-      {pastClasses.length > 0 && (
+      {activeTab === "classes" && pastClasses.length > 0 && (
         <section>
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-            Past Classes
-          </h2>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Past Classes</h2>
           <div className="space-y-3">
             {pastClasses.map((cls) => (
-              <ClassCard key={cls.id} cls={cls} />
+              <ClassCard
+                key={cls.id}
+                cls={cls}
+                onSaveRecording={cls.status === "ended" && !cls.recordingUrl ? () => saveRecordingMutation.mutate(cls.id) : undefined}
+                recordingUrl={cls.recordingUrl ?? undefined}
+                savingRecording={saveRecordingMutation.isPending}
+              />
             ))}
           </div>
         </section>
       )}
 
-      {!isLoading && classes.length === 0 && (
+      {activeTab === "classes" && !isLoading && classes.length === 0 && (
         <div className="flex flex-col items-center justify-center h-60 text-center">
           <VideoOff className="w-12 h-12 text-muted-foreground/40 mb-3" />
           <p className="font-medium text-muted-foreground">No classes yet</p>
-          <p className="text-sm text-muted-foreground/70 mt-1">
-            Schedule your first live class to get started
-          </p>
+          <p className="text-sm text-muted-foreground/70 mt-1">Schedule your first live class to get started</p>
         </div>
       )}
 
@@ -415,6 +517,30 @@ export default function LiveClassesPage() {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="courseId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Course / Batch <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All students (no restriction)" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="all">All students (no restriction)</SelectItem>
+                        {coursesList.map(c => (
+                          <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Only enrolled students of the selected course can join this class.</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="flex justify-end gap-3 pt-2">
                 <Button
                   type="button"
@@ -469,11 +595,17 @@ function ClassCard({
   canGoLive,
   onGoLive,
   onCancel,
+  onSaveRecording,
+  recordingUrl,
+  savingRecording,
 }: {
   cls: LiveClass;
   canGoLive?: boolean;
   onGoLive?: () => void;
   onCancel?: () => void;
+  onSaveRecording?: () => void;
+  recordingUrl?: string;
+  savingRecording?: boolean;
 }) {
   return (
     <div className="rounded-xl border bg-card p-4 flex items-start gap-4">
@@ -485,7 +617,17 @@ function ClassCard({
         {cls.description && (
           <p className="text-sm text-muted-foreground mt-1 truncate">{cls.description}</p>
         )}
-        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+        {cls.courseName && (
+          <span className="inline-flex items-center gap-1 text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-full px-2 py-0.5 mt-1">
+            <GraduationCap className="w-3 h-3" />{cls.courseName}
+          </span>
+        )}
+        {!cls.courseId && (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5 mt-1">
+            <Users className="w-3 h-3" />All students
+          </span>
+        )}
+        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
           <span className="flex items-center gap-1">
             <Calendar className="w-3.5 h-3.5" />
             {format(new Date(cls.scheduledAt), "dd MMM yyyy, hh:mm a")}
@@ -504,6 +646,12 @@ function ClassCard({
               Started {formatDistanceToNow(new Date(cls.startedAt), { addSuffix: true })}
             </span>
           )}
+          {recordingUrl && (
+            <a href={recordingUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-violet-600 hover:underline">
+              <PlayCircle className="w-3.5 h-3.5" />
+              Watch Recording
+            </a>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -517,6 +665,12 @@ function ClassCard({
           <Button size="sm" onClick={onGoLive} className="bg-violet-600 hover:bg-violet-700 text-white gap-1">
             <Play className="w-3.5 h-3.5" />
             Go Live
+          </Button>
+        )}
+        {cls.status === "ended" && !recordingUrl && onSaveRecording && (
+          <Button size="sm" variant="outline" onClick={onSaveRecording} disabled={savingRecording} className="gap-1 text-xs">
+            <RefreshCw className={`w-3.5 h-3.5 ${savingRecording ? "animate-spin" : ""}`} />
+            {savingRecording ? "Fetching..." : "Get Recording"}
           </Button>
         )}
         {(cls.status === "scheduled" || cls.status === "live") && onCancel && (

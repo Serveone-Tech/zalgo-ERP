@@ -321,10 +321,14 @@ export default function SuperAdminDashboard() {
     return true;
   });
 
-  const expiringSoonCount = subscriptions.filter((s: any) => {
+  const expiringSoonSubs = subscriptions.filter((s: any) => {
     const d = differenceInDays(new Date(s.subscription.endDate), now);
     return s.subscription.status === "active" && d <= 7;
-  }).length;
+  });
+  const expiringSoonCount = expiringSoonSubs.length;
+  const minDaysLeft = expiringSoonCount > 0
+    ? Math.min(...expiringSoonSubs.map((s: any) => differenceInDays(new Date(s.subscription.endDate), now)))
+    : 0;
 
   const activeCount = subscriptions.filter(
     (s: any) => s.subscription.status === "active",
@@ -353,7 +357,7 @@ export default function SuperAdminDashboard() {
           <div>
             <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
               {expiringSoonCount} subscription{expiringSoonCount > 1 ? "s" : ""}{" "}
-              expiring within 7 days
+              expiring in {minDaysLeft}d
             </p>
             <button
               onClick={() => setSubFilter("expiring_soon")}

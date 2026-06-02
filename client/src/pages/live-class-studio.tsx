@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth";
 import DailyIframe from "@daily-co/daily-js";
 
 type DeviceInfo = { deviceId: string; label: string };
@@ -31,8 +32,12 @@ type DeviceInfo = { deviceId: string; label: string };
 // ─── Device setup step ────────────────────────────────────────────────────────
 function DeviceSetup({
   onStart,
+  recordingEnabled,
+  onToggleRecording,
 }: {
   onStart: (cameraId: string, micId: string) => void;
+  recordingEnabled: boolean;
+  onToggleRecording: (v: boolean) => void;
 }) {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -243,6 +248,21 @@ function DeviceSetup({
           </div>
 
           <div className="mt-auto space-y-3">
+            {/* Recording toggle */}
+            <div
+              role="button"
+              onClick={() => onToggleRecording(!recordingEnabled)}
+              className={`flex items-center justify-between rounded-lg p-3 cursor-pointer border transition-colors ${recordingEnabled ? "bg-red-500/20 border-red-500/40" : "bg-white/5 border-white/10"}`}
+            >
+              <div>
+                <p className="text-sm font-medium text-white/80">Record this class</p>
+                <p className="text-xs text-white/40 mt-0.5">Save for students to watch later</p>
+              </div>
+              <div className={`w-10 h-5 rounded-full transition-colors relative ${recordingEnabled ? "bg-red-500" : "bg-white/20"}`}>
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${recordingEnabled ? "left-5" : "left-0.5"}`} />
+              </div>
+            </div>
+
             <div className="rounded-lg bg-white/5 p-3 text-xs text-white/50 space-y-1">
               <p className="font-medium text-white/70">Tips for best quality</p>
               <p>• Use a USB camera for HD video</p>
@@ -273,11 +293,15 @@ function LiveBroadcast({
   classId,
   cameraId,
   micId,
+  adminName,
+  recordingEnabled,
   onEnd,
 }: {
   classId: number;
   cameraId: string;
   micId: string;
+  adminName: string;
+  recordingEnabled: boolean;
   onEnd: () => void;
 }) {
   const { toast } = useToast();
@@ -286,6 +310,7 @@ function LiveBroadcast({
   const queryClient = useQueryClient();
   const [joining, setJoining] = useState(true);
   const [ending, setEnding] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
   const endMutation = useMutation({
     mutationFn: async () => {
@@ -329,14 +354,27 @@ function LiveBroadcast({
         });
         frameRef.current = frame;
 
-        await frame.join({ url: roomUrl, token });
+        // Pass userName so Daily.co skips the name-entry pre-call dialog
+        await frame.join({ url: roomUrl, token, userName: adminName });
 
         // Apply user-selected devices after joining
         if (cameraId || micId) {
-          await (frame as any).setInputDevicesAsync({
+          await frame.setInputDevicesAsync({
             ...(cameraId ? { videoDeviceId: cameraId } : {}),
             ...(micId ? { audioDeviceId: micId } : {}),
           }).catch(() => {});
+        }
+
+        // Start recording if admin enabled it
+        if (recordingEnabled) {
+          try {
+            await frame.startRecording();
+            setIsRecording(true);
+            // Tell server recording is active
+            fetch(`/api/live-classes/${classId}/recording/start`, { method: "POST" }).catch(() => {});
+          } catch (err: any) {
+            toast({ title: "Recording unavailable", description: err.message, variant: "destructive" });
+          }
         }
 
         setJoining(false);
@@ -356,6 +394,12 @@ function LiveBroadcast({
 
   const handleEnd = async () => {
     setEnding(true);
+    // Stop recording before leaving so Daily.co can save it
+    if (isRecording) {
+      try { frameRef.current?.stopRecording(); } catch (_) {}
+      // Give Daily.co a moment to process
+      await new Promise((r) => setTimeout(r, 2000));
+    }
     await frameRef.current?.leave().catch(() => {});
     await frameRef.current?.destroy().catch(() => {});
     endMutation.mutate();
@@ -367,6 +411,12 @@ function LiveBroadcast({
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           <span className="font-semibold text-red-400 text-sm">LIVE</span>
+          {isRecording && (
+            <span className="flex items-center gap-1 text-xs text-white/60 ml-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse" />
+              REC
+            </span>
+          )}
         </div>
         <span className="ml-auto">
           <Button size="sm" variant="destructive" onClick={handleEnd} disabled={ending}>
@@ -397,13 +447,13 @@ export default function LiveClassStudioPage() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const classId = Number(id);
-  const { toast } = useToast();
+  const { user } = useAuth();
 
   const [phase, setPhase] = useState<"setup" | "live">("setup");
   const [cameraId, setCameraId] = useState("");
   const [micId, setMicId] = useState("");
+  const [recordingEnabled, setRecordingEnabled] = useState(false);
 
-  // Restore preferred devices from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("liveclass_devices");
     if (saved) {
@@ -428,10 +478,12 @@ export default function LiveClassStudioPage() {
         classId={classId}
         cameraId={cameraId}
         micId={micId}
+        adminName={user?.name ?? "Admin"}
+        recordingEnabled={recordingEnabled}
         onEnd={() => navigate("/live-classes")}
       />
     );
   }
 
-  return <DeviceSetup onStart={handleStart} />;
+  return <DeviceSetup onStart={handleStart} recordingEnabled={recordingEnabled} onToggleRecording={setRecordingEnabled} />;
 }

@@ -67,6 +67,15 @@ export async function deleteDailyRoom(roomName: string) {
   });
 }
 
+export async function fetchRecording(roomName: string): Promise<{ id: string; download_url: string } | null> {
+  const res = await fetch(`${DAILY_API_BASE}/recordings?room_name=${encodeURIComponent(roomName)}&limit=1`, {
+    headers: { Authorization: `Bearer ${getApiKey()}` },
+  });
+  if (!res.ok) return null;
+  const data = await res.json() as { data?: { id: string; download_url: string }[] };
+  return data.data?.[0] ?? null;
+}
+
 export function isDailyConfigured(): boolean {
   return Boolean(process.env.DAILY_API_KEY);
 }

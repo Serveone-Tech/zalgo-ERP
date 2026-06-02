@@ -107,11 +107,14 @@ export default function LoginPage() {
             </form>
             <p className="text-center text-sm text-white/40 mt-4">
               New to Zalgo ERP?{" "}
-              <button
-                onClick={() => navigate("/register")}
-                className="text-primary hover:underline"
-              >
+              <button onClick={() => navigate("/register")} className="text-primary hover:underline">
                 Create an account
+              </button>
+            </p>
+            <p className="text-center text-sm text-white/40 mt-2">
+              Are you a student?{" "}
+              <button onClick={() => navigate("/student-register")} className="text-primary hover:underline">
+                Register your portal account
               </button>
             </p>
           </CardContent>

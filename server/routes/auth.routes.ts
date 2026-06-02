@@ -2,6 +2,7 @@
 import { Router } from "express";
 import {
   AuthController,
+  MobileAuthController,
   requireAuth,
   requireAdmin,
 } from "../controllers/auth.controller";
@@ -11,6 +12,11 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 const router = Router();
+
+// ── Mobile JWT routes (React Native / Expo) ───────────────────────────────────
+router.post("/mobile/login", MobileAuthController.login);
+router.post("/mobile/refresh", MobileAuthController.refresh);
+router.get("/mobile/me", requireAuth, MobileAuthController.me);
 
 // ── Public routes ─────────────────────────────────────────────────────────────
 router.post("/login", AuthController.login);

@@ -39,11 +39,31 @@ declare module "express-session" {
 // Trust reverse proxy (Replit/Nginx) for correct IP detection
 app.set("trust proxy", 1);
 
+// ── CORS — allow mobile apps (React Native / Expo) ───────────────────────────
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  // Allow web origin in production, all origins in dev, and always allow mobile (no origin header)
+  const allowed =
+    !origin ||                                         // React Native (no origin)
+    origin.startsWith("http://localhost") ||           // local dev
+    origin.startsWith("exp://") ||                     // Expo Go
+    (isProduction && origin === process.env.WEB_ORIGIN); // prod web
+  if (allowed) {
+    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With");
+  }
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
+
 // --- SECURITY: HTTP Headers via Helmet ---
 app.use(
   helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false,
   }),
 );
 

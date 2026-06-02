@@ -2,12 +2,13 @@ import type { Request, Response } from "express";
 import { db } from "../db";
 import { z } from "zod";
 import { eq, desc, and } from "drizzle-orm";
-import { liveClasses } from "@shared/schema";
+import { liveClasses, students, enrollments, courses } from "@shared/schema";
 import {
   createDailyRoom,
   createMeetingToken,
   deleteDailyRoom,
   isDailyConfigured,
+  fetchRecording,
 } from "../utils/daily.service";
 import { addMinutes, addHours } from "date-fns";
 
@@ -24,8 +25,29 @@ export const LiveClassesController = {
   async list(req: Request, res: Response) {
     const adminId = getAdminId(req);
     const classes = await db
-      .select()
+      .select({
+        id: liveClasses.id,
+        adminId: liveClasses.adminId,
+        title: liveClasses.title,
+        description: liveClasses.description,
+        scheduledAt: liveClasses.scheduledAt,
+        durationMinutes: liveClasses.durationMinutes,
+        status: liveClasses.status,
+        courseId: liveClasses.courseId,
+        courseName: courses.name,
+        dailyRoomName: liveClasses.dailyRoomName,
+        dailyRoomUrl: liveClasses.dailyRoomUrl,
+        viewerCount: liveClasses.viewerCount,
+        startedAt: liveClasses.startedAt,
+        endedAt: liveClasses.endedAt,
+        recordingUrl: liveClasses.recordingUrl,
+        recordingId: liveClasses.recordingId,
+        recordingAllowed: liveClasses.recordingAllowed,
+        createdAt: liveClasses.createdAt,
+        updatedAt: liveClasses.updatedAt,
+      })
       .from(liveClasses)
+      .leftJoin(courses, eq(liveClasses.courseId, courses.id))
       .where(eq(liveClasses.adminId, adminId))
       .orderBy(desc(liveClasses.scheduledAt));
     res.json(classes);
@@ -38,6 +60,7 @@ export const LiveClassesController = {
       description: z.string().optional(),
       scheduledAt: z.string().datetime(),
       durationMinutes: z.number().min(15).max(480).default(60),
+      courseId: z.number().optional().nullable(),
     });
 
     try {
@@ -65,6 +88,7 @@ export const LiveClassesController = {
           description: data.description ?? null,
           scheduledAt: new Date(data.scheduledAt),
           durationMinutes: data.durationMinutes,
+          courseId: data.courseId ?? null,
           dailyRoomName: room.name,
           dailyRoomUrl: room.url,
           status: "scheduled",
@@ -155,6 +179,70 @@ export const LiveClassesController = {
       const message = err instanceof Error ? err.message : "Failed to join class";
       return res.status(500).json({ message });
     }
+  },
+
+  async startRecording(req: Request, res: Response) {
+    const adminId = getAdminId(req);
+    const id = Number(req.params.id);
+    const [cls] = await db.select().from(liveClasses).where(and(eq(liveClasses.id, id), eq(liveClasses.adminId, adminId)));
+    if (!cls) return res.status(404).json({ message: "Class not found" });
+    await db.update(liveClasses).set({ recordingAllowed: true, updatedAt: new Date() }).where(eq(liveClasses.id, id));
+    res.json({ success: true });
+  },
+
+  async saveRecording(req: Request, res: Response) {
+    const adminId = getAdminId(req);
+    const id = Number(req.params.id);
+    const [cls] = await db.select().from(liveClasses).where(and(eq(liveClasses.id, id), eq(liveClasses.adminId, adminId)));
+    if (!cls) return res.status(404).json({ message: "Class not found" });
+    if (!cls.dailyRoomName) return res.status(400).json({ message: "No room associated with this class" });
+
+    try {
+      const recording = await fetchRecording(cls.dailyRoomName);
+      if (recording) {
+        await db.update(liveClasses)
+          .set({ recordingUrl: recording.download_url, recordingId: recording.id, updatedAt: new Date() })
+          .where(eq(liveClasses.id, id));
+        return res.json({ recordingUrl: recording.download_url });
+      }
+      res.json({ recordingUrl: null, message: "Recording not available yet — Daily.co may still be processing it." });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch recording";
+      return res.status(500).json({ message });
+    }
+  },
+
+  async getStudents(req: Request, res: Response) {
+    const adminId = getAdminId(req);
+    const list = await db
+      .select({
+        id: students.id,
+        name: students.name,
+        enrollmentNo: students.enrollmentNo,
+        email: students.email,
+        phone: students.phone,
+        status: students.status,
+        userId: students.userId,
+        canWatchLiveClasses: students.canWatchLiveClasses,
+        canWatchRecordings: students.canWatchRecordings,
+      })
+      .from(students)
+      .where(eq(students.adminId, adminId));
+    res.json(list);
+  },
+
+  async updateStudentPermissions(req: Request, res: Response) {
+    const adminId = getAdminId(req);
+    const studentId = Number(req.params.studentId);
+    const schema = z.object({
+      canWatchLiveClasses: z.boolean().optional(),
+      canWatchRecordings: z.boolean().optional(),
+    });
+    const data = schema.parse(req.body);
+    const [student] = await db.select({ id: students.id }).from(students).where(and(eq(students.id, studentId), eq(students.adminId, adminId)));
+    if (!student) return res.status(404).json({ message: "Student not found" });
+    await db.update(students).set(data as any).where(eq(students.id, studentId));
+    res.json({ success: true });
   },
 
   async cancel(req: Request, res: Response) {

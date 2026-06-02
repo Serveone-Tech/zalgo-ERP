@@ -60,7 +60,9 @@ import { SubscriptionBanner } from "@/components/subscription-banner";
 import type { Notification, Branch } from "@shared/schema";
 import { useEffect } from "react";
 
-const navigation = [
+type NavItem = { name: string; href: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; module?: string; adminOnly?: boolean };
+
+const navigation: { group: string; items: NavItem[] }[] = [
   {
     group: "Overview",
     items: [

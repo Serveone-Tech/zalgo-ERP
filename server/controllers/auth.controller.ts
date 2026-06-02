@@ -4,6 +4,7 @@ import bcrypt from "bcrypt";
 import { storage } from "../storage";
 import { z } from "zod";
 import crypto from "crypto";
+import { signToken, signRefreshToken, verifyToken } from "../utils/jwt.service";
 import {
   upsertKlaviyoProfile,
   trackKlaviyoEvent,
@@ -366,16 +367,77 @@ export const AuthController = {
   },
 };
 
+// ── Mobile: JWT login ─────────────────────────────────────────────────────────
+export const MobileAuthController = {
+  async login(req: Request, res: Response) {
+    const { email, password } = req.body;
+    if (!email || !password)
+      return res.status(400).json({ message: "Email and password required" });
+
+    const user = await storage.getUserByEmail(email);
+    if (!user || !user.isActive)
+      return res.status(401).json({ message: "Invalid credentials" });
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) return res.status(401).json({ message: "Invalid credentials" });
+
+    const adminId = (user as any).adminId ?? user.id;
+    const token = signToken({ userId: user.id, adminId, role: user.role, email: user.email });
+    const refreshToken = signRefreshToken({ userId: user.id });
+
+    const { passwordHash, ...safeUser } = user;
+    res.json({ token, refreshToken, user: safeUser });
+  },
+
+  async refresh(req: Request, res: Response) {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(400).json({ message: "Refresh token required" });
+    try {
+      const payload = verifyToken(refreshToken);
+      const user = await storage.getUser(payload.userId);
+      if (!user || !user.isActive) return res.status(401).json({ message: "User not found" });
+      const adminId = (user as any).adminId ?? user.id;
+      const token = signToken({ userId: user.id, adminId, role: user.role, email: user.email });
+      res.json({ token });
+    } catch {
+      res.status(401).json({ message: "Invalid or expired refresh token" });
+    }
+  },
+
+  async me(req: Request, res: Response) {
+    const user = await storage.getUser(req.session.userId!);
+    if (!user) return res.status(401).json({ message: "User not found" });
+    const { passwordHash, ...safeUser } = user;
+    res.json(safeUser);
+  },
+};
+
+// ── Helper: extract JWT from Authorization header ─────────────────────────────
+function injectJwtToSession(req: Request): boolean {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) return false;
+  try {
+    const payload = verifyToken(authHeader.slice(7));
+    req.session.userId = payload.userId;
+    req.session.userRole = payload.role;
+    req.session.userEmail = payload.email;
+    (req.session as any).adminId = payload.adminId;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ── Middleware ────────────────────────────────────────────────────────────────
 
 export function requireAuth(req: Request, res: Response, next: any) {
-  if (!req.session.userId)
-    return res.status(401).json({ message: "Authentication required" });
-  next();
+  if (req.session.userId) return next();
+  if (injectJwtToSession(req)) return next();
+  return res.status(401).json({ message: "Authentication required" });
 }
 
 export function requireAdmin(req: Request, res: Response, next: any) {
-  if (!req.session.userId)
+  if (!req.session.userId && !injectJwtToSession(req))
     return res.status(401).json({ message: "Authentication required" });
   if (
     req.session.userRole !== "admin" &&
