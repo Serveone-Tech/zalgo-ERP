@@ -1,5 +1,6 @@
 // client/src/App.tsx — REPLACE
 import { Switch, Route, useLocation } from "wouter";
+import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -146,6 +147,12 @@ function ProtectedRoute({
   return <Component />;
 }
 
+function StudentRedirect() {
+  const [, navigate] = useLocation();
+  useEffect(() => { navigate("/student"); }, []);
+  return null;
+}
+
 function AuthenticatedRouter() {
   const { user, isLoading, subscription, subscriptionLoading, markOnboarded } =
     useAuth();
@@ -171,7 +178,7 @@ function AuthenticatedRouter() {
           <Route path="/student/attendance" component={StudentAttendancePage} />
           <Route path="/student/exams" component={StudentExamsPage} />
           <Route path="/student/fees" component={StudentFeesPage} />
-          <Route>{() => { window.location.replace("/student"); return null; }}</Route>
+          <Route component={StudentRedirect} />
         </Switch>
       </StudentLayout>
     );

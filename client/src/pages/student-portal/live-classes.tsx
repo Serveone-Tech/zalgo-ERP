@@ -5,6 +5,7 @@ import { Video, VideoOff, Calendar, Clock, Loader2, Users, PlayCircle } from "lu
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth";
 import DailyIframe from "@daily-co/daily-js";
 import type { LiveClass } from "@shared/schema";
 
@@ -15,7 +16,7 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant="outline" className="text-muted-foreground">Cancelled</Badge>;
 }
 
-function WatchClass({ classId, onLeave }: { classId: number; onLeave: () => void }) {
+function WatchClass({ classId, studentName, onLeave }: { classId: number; studentName: string; onLeave: () => void }) {
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
   const [connecting, setConnecting] = useState(true);
@@ -34,7 +35,8 @@ function WatchClass({ classId, onLeave }: { classId: number; onLeave: () => void
           iframeStyle: { width: "100%", height: "100%", border: "none", position: "absolute", top: "0", left: "0" },
         });
         frame.on("left-meeting", () => { frame?.destroy().catch(() => {}); onLeave(); });
-        await frame.join({ url: roomUrl, token });
+        // Pass student name so Daily.co skips the "Enter your name" dialog
+        await frame.join({ url: roomUrl, token, userName: studentName });
         setConnecting(false);
       } catch (err: any) {
         toast({ title: "Could not join class", description: err.message, variant: "destructive" });
@@ -48,7 +50,13 @@ function WatchClass({ classId, onLeave }: { classId: number; onLeave: () => void
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
       <div ref={containerRef} className="flex-1 relative">
-        {connecting && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10"><Loader2 className="w-8 h-8 animate-spin text-white/60" /><p className="text-white/60 text-sm">Joining class...</p></div>}
+        {connecting && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 bg-black">
+            <Loader2 className="w-8 h-8 animate-spin text-white/60" />
+            <p className="text-white/60 text-sm">Joining class...</p>
+            <p className="text-white/30 text-xs">Please wait, connecting to live room</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -56,12 +64,14 @@ function WatchClass({ classId, onLeave }: { classId: number; onLeave: () => void
 
 export default function StudentLiveClassesPage() {
   const [watchingId, setWatchingId] = useState<number | null>(null);
-  const { data: classes = [], isLoading } = useQuery<(LiveClass & { recordingUrl?: string | null; courseName?: string | null })[]>({
+  const { user } = useAuth();
+  const studentName = user?.name ?? "Student";
+  const { data: classes = [], isLoading, error } = useQuery<(LiveClass & { recordingUrl?: string | null; courseName?: string | null })[]>({
     queryKey: ["/api/student-portal/live-classes"],
     refetchInterval: 15000,
   });
 
-  if (watchingId !== null) return <WatchClass classId={watchingId} onLeave={() => setWatchingId(null)} />;
+  if (watchingId !== null) return <WatchClass classId={watchingId} studentName={studentName} onLeave={() => setWatchingId(null)} />;
 
   const liveNow = classes.filter(c => c.status === "live");
   const upcoming = classes.filter(c => c.status === "scheduled");
@@ -137,11 +147,23 @@ export default function StudentLiveClassesPage() {
         </section>
       )}
 
-      {!isLoading && classes.length === 0 && (
+      {!isLoading && !error && classes.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <VideoOff className="w-10 h-10 text-muted-foreground/30 mb-3" />
-          <p className="font-medium text-muted-foreground">No classes scheduled</p>
-          <p className="text-sm text-muted-foreground/60 mt-1">Your institute hasn't scheduled any live classes yet</p>
+          <p className="font-medium text-muted-foreground">No classes available</p>
+          <p className="text-sm text-muted-foreground/60 mt-1">
+            Your institute hasn't scheduled any live classes yet, or you are not enrolled in the relevant course.
+          </p>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <VideoOff className="w-10 h-10 text-red-300 mb-3" />
+          <p className="font-medium text-red-600">Access Restricted</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {(error as any)?.message ?? "Contact your institute for live class access."}
+          </p>
         </div>
       )}
     </div>

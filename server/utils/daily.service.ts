@@ -22,6 +22,8 @@ export async function createDailyRoom(roomName: string, expiresAt: Date) {
         enable_screenshare: false,
         start_video_off: false,
         start_audio_off: false,
+        enable_prejoin_ui: false,   // skip "Are you ready to join?" screen
+        enable_knocking: false,
       },
     }),
   });
@@ -49,6 +51,8 @@ export async function createMeetingToken(
         is_owner: isOwner,
         exp: Math.floor(expiresAt.getTime() / 1000),
         enable_screenshare: isOwner,
+        start_video_off: false,
+        start_audio_off: !isOwner,  // students join with mic off by default
       },
     }),
   });
@@ -58,6 +62,17 @@ export async function createMeetingToken(
   }
   const data = (await res.json()) as { token: string };
   return data.token;
+}
+
+export async function updateDailyRoom(roomName: string, properties: Record<string, unknown>) {
+  await fetch(`${DAILY_API_BASE}/rooms/${roomName}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${getApiKey()}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ properties }),
+  });
 }
 
 export async function deleteDailyRoom(roomName: string) {

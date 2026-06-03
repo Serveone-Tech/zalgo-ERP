@@ -69,7 +69,7 @@ export const StudentPortalController = {
 
       await db
         .update(students)
-        .set({ userId } as any)
+        .set({ userId, canWatchLiveClasses: true, canWatchRecordings: true } as any)
         .where(eq(students.id, student.id));
 
       // Return email so frontend can show it to the user
@@ -130,8 +130,10 @@ export const StudentPortalController = {
       .select({ id: students.id, adminId: students.adminId, canWatchLiveClasses: students.canWatchLiveClasses })
       .from(students)
       .where(eq(students.userId as any, userId));
-    if (!student || !student.adminId) return res.json([]);
-    if (student.canWatchLiveClasses === false) return res.json([]);
+    if (!student) return res.status(404).json({ message: "Student record not found" });
+    if (!student.adminId) return res.json([]);
+    if (student.canWatchLiveClasses === false)
+      return res.status(403).json({ message: "Live class access is disabled for your account. Contact your institute." });
 
     // Get courses this student is enrolled in
     const enrolled = await db

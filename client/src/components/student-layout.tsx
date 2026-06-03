@@ -12,8 +12,13 @@ const navItems = [
 ];
 
 export function StudentLayout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const { user, logout } = useAuth();
+
+  async function handleLogout() {
+    await logout();
+    navigate("/");
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -29,7 +34,7 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
             </AvatarFallback>
           </Avatar>
           <span className="text-sm font-medium hidden sm:block">{user?.name}</span>
-          <button onClick={logout} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Logout">
+          <button onClick={handleLogout} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Logout">
             <LogOut className="w-4 h-4" />
           </button>
         </div>
@@ -65,7 +70,7 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="px-3 py-4 border-t border-sidebar-border">
-          <button onClick={logout} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors">
+          <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors">
             <LogOut className="w-4 h-4" />
             Sign Out
           </button>

@@ -7,6 +7,7 @@ import {
   createDailyRoom,
   createMeetingToken,
   deleteDailyRoom,
+  updateDailyRoom,
   isDailyConfigured,
   fetchRecording,
 } from "../utils/daily.service";
@@ -123,6 +124,13 @@ export const LiveClassesController = {
 
     try {
       const expiry = addMinutes(new Date(), (cls.durationMinutes ?? 60) + 120);
+
+      // Ensure prejoin UI is disabled for existing rooms as well
+      await updateDailyRoom(cls.dailyRoomName, {
+        enable_prejoin_ui: false,
+        enable_knocking: false,
+      }).catch(() => {});
+
       const token = await createMeetingToken(cls.dailyRoomName, true, expiry);
 
       await db

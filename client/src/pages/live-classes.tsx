@@ -332,23 +332,25 @@ export default function LiveClassesPage() {
                       <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">Not registered</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button
-                      title="Live class access"
-                      onClick={() => permissionMutation.mutate({ studentId: s.id, field: "canWatchLiveClasses", value: !(s.canWatchLiveClasses ?? true) })}
-                      className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${(s.canWatchLiveClasses ?? true) ? "bg-violet-50 border-violet-200 text-violet-700" : "bg-muted border-transparent text-muted-foreground"}`}
-                    >
-                      {(s.canWatchLiveClasses ?? true) ? <Shield className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}
-                      Live
-                    </button>
-                    <button
-                      title="Recording access"
-                      onClick={() => permissionMutation.mutate({ studentId: s.id, field: "canWatchRecordings", value: !(s.canWatchRecordings ?? true) })}
-                      className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${(s.canWatchRecordings ?? true) ? "bg-violet-50 border-violet-200 text-violet-700" : "bg-muted border-transparent text-muted-foreground"}`}
-                    >
-                      {(s.canWatchRecordings ?? true) ? <Shield className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}
-                      Rec
-                    </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="text-right">
+                      <p className="text-[10px] text-muted-foreground mb-1">Live Classes</p>
+                      <button
+                        onClick={() => permissionMutation.mutate({ studentId: s.id, field: "canWatchLiveClasses", value: !(s.canWatchLiveClasses ?? true) })}
+                        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${(s.canWatchLiveClasses ?? true) ? "bg-green-50 border-green-300 text-green-700" : "bg-red-50 border-red-300 text-red-600"}`}
+                      >
+                        {(s.canWatchLiveClasses ?? true) ? <><Shield className="w-3.5 h-3.5" />Allowed</> : <><ShieldOff className="w-3.5 h-3.5" />Blocked</>}
+                      </button>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-muted-foreground mb-1">Recordings</p>
+                      <button
+                        onClick={() => permissionMutation.mutate({ studentId: s.id, field: "canWatchRecordings", value: !(s.canWatchRecordings ?? true) })}
+                        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${(s.canWatchRecordings ?? true) ? "bg-green-50 border-green-300 text-green-700" : "bg-red-50 border-red-300 text-red-600"}`}
+                      >
+                        {(s.canWatchRecordings ?? true) ? <><Shield className="w-3.5 h-3.5" />Allowed</> : <><ShieldOff className="w-3.5 h-3.5" />Blocked</>}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

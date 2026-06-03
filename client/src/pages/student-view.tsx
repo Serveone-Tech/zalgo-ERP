@@ -71,6 +71,8 @@ export default function StudentViewPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [enrollOpen, setEnrollOpen] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
   const canEdit = user?.role === "admin" || user?.role === "staff";
   const { data: branches = [] } = useBranches();
   const { data: courses = [] } = useCourses();
@@ -148,6 +150,44 @@ export default function StudentViewPage() {
     },
   });
 
+  const enrollMutation = useMutation({
+    mutationFn: async (courseId: number) => {
+      const res = await fetch("/api/enrollments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ studentId, courseId }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to enroll");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/enrollments"] });
+      setEnrollOpen(false);
+      setSelectedCourseId("");
+      toast({ title: "Student enrolled successfully!" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const unenrollMutation = useMutation({
+    mutationFn: async (enrollmentId: number) => {
+      const res = await fetch(`/api/enrollments/${enrollmentId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to remove enrollment");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/enrollments"] });
+      toast({ title: "Enrollment removed" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -171,9 +211,13 @@ export default function StudentViewPage() {
   const studentEnrollments = enrollments.filter(
     (e) => e.studentId === studentId,
   );
+  const enrolledCourseIds = new Set(studentEnrollments.map((e) => e.courseId));
   const enrolledCourses = studentEnrollments
     .map((e) => courses.find((c) => c.id === e.courseId))
     .filter(Boolean) as Course[];
+  const availableCourses = courses.filter(
+    (c) => c.status === "Active" && !enrolledCourseIds.has(c.id),
+  );
 
   const studentFees = fees.filter((f) => f.studentId === studentId);
   const studentPlans = feePlans.filter((p) => p.studentId === studentId);
@@ -425,21 +469,34 @@ export default function StudentViewPage() {
           {/* Course Details */}
           <Card className="rounded-2xl border-border/50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-primary" /> Course Details
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-primary" /> Course Details
+                </CardTitle>
+                {canEdit && availableCourses.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setEnrollOpen(true)}
+                  >
+                    + Enroll in Course
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <InfoRow
                 label="Course Interested"
                 value={student.courseInterested}
               />
-              {enrolledCourses.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Formally Enrolled
-                  </p>
-                  {enrolledCourses.map((course) => (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Enrolled Courses {enrolledCourses.length === 0 && <span className="italic">(none yet)</span>}
+                </p>
+                {enrolledCourses.map((course) => {
+                  const enrollment = studentEnrollments.find((e) => e.courseId === course.id);
+                  return (
                     <div
                       key={course.id}
                       className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2"
@@ -447,19 +504,64 @@ export default function StudentViewPage() {
                       <div>
                         <p className="font-medium text-sm">{course.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {course.duration} · ₹
-                          {course.fee.toLocaleString("en-IN")}
+                          {course.duration} · ₹{course.fee.toLocaleString("en-IN")}
                         </p>
                       </div>
-                      <Badge variant="outline" className="text-xs">
-                        {course.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs border-green-300 text-green-700 bg-green-50">
+                          Enrolled
+                        </Badge>
+                        {canEdit && enrollment && (
+                          <button
+                            onClick={() => unenrollMutation.mutate(enrollment.id)}
+                            className="text-xs text-red-500 hover:text-red-700 hover:underline"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
+
+          {/* Enroll Dialog */}
+          <Dialog open={enrollOpen} onOpenChange={setEnrollOpen}>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Enroll in Course</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-1.5">
+                  <Label>Select Course</Label>
+                  <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a course..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableCourses.map((c) => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.name} — ₹{c.fee.toLocaleString("en-IN")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setEnrollOpen(false)}>Cancel</Button>
+                  <Button
+                    disabled={!selectedCourseId || enrollMutation.isPending}
+                    onClick={() => selectedCourseId && enrollMutation.mutate(Number(selectedCourseId))}
+                  >
+                    {enrollMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                    Enroll Student
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Direct Fee Payments */}
           {studentFees.length > 0 && (
