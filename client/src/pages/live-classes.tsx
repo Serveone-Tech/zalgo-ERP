@@ -224,12 +224,18 @@ export default function LiveClassesPage() {
       const res = await fetch(`/api/live-classes/${id}/recording/save`, { method: "POST" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message);
-      return json;
+      return { ...json, classId: id };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/live-classes"] });
-      if (data.recordingUrl) toast({ title: "Recording saved!", description: "Students can now watch the recording." });
-      else toast({ title: "Processing", description: data.message ?? "Recording is still being processed by Daily.co." });
+      if (data.recordingUrl) {
+        toast({ title: "Recording saved!", description: "Students can now watch the recording." });
+      } else {
+        toast({
+          title: "Recording still processing",
+          description: "Daily.co is processing the recording. Try 'Get Recording' again in a few minutes.",
+        });
+      }
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });

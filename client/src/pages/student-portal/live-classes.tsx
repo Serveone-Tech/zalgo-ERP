@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
-import { Video, VideoOff, Calendar, Clock, Loader2, Users, PlayCircle } from "lucide-react";
+import { Video, VideoOff, Calendar, Clock, Loader2, Users, PlayCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +53,21 @@ function WatchClass({ classId, studentName, onLeave }: { classId: number; studen
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
+      {/* Top bar with back button */}
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/10 shrink-0">
+        <button
+          onClick={onLeave}
+          className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Classes
+        </button>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+          <span className="text-red-400 text-xs font-semibold">LIVE</span>
+        </div>
+      </div>
+
       <div ref={containerRef} className="flex-1 relative">
         {connecting && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 bg-black">
@@ -130,6 +145,33 @@ export default function StudentLiveClassesPage() {
         </section>
       )}
 
+      {/* Recordings section — classes with recordings */}
+      {past.filter(c => (c as any).recordingUrl).length > 0 && (
+        <section>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-2">
+            <PlayCircle className="w-4 h-4 text-primary" />
+            Recordings
+          </h2>
+          <div className="space-y-3">
+            {past.filter(c => (c as any).recordingUrl).map(cls => (
+              <div key={cls.id} className="rounded-xl border bg-card p-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium">{cls.title}</p>
+                  {cls.courseName && <span className="inline-block text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-full px-2 py-0.5 mt-1">{cls.courseName}</span>}
+                  <p className="text-xs text-muted-foreground mt-1">{format(new Date(cls.scheduledAt), "dd MMM yyyy")}</p>
+                </div>
+                <a href={(cls as any).recordingUrl} target="_blank" rel="noopener noreferrer">
+                  <Button className="bg-primary text-white gap-1.5 shrink-0">
+                    <PlayCircle className="w-4 h-4" />
+                    Watch
+                  </Button>
+                </a>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {past.length > 0 && (
         <section>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">Past Classes</h2>
@@ -137,14 +179,20 @@ export default function StudentLiveClassesPage() {
             {past.map(cls => (
               <div key={cls.id} className="rounded-xl border bg-card p-4">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2"><span className="font-medium text-sm">{cls.title}</span><StatusBadge status={cls.status} /></div>
-                  {(cls as any).recordingUrl && (
+                  <div>
+                    <div className="flex items-center gap-2"><span className="font-medium text-sm">{cls.title}</span><StatusBadge status={cls.status} /></div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(cls.scheduledAt), "dd MMM yyyy, hh:mm a")}</p>
+                  </div>
+                  {(cls as any).recordingUrl ? (
                     <a href={(cls as any).recordingUrl} target="_blank" rel="noopener noreferrer">
-                      <Button size="sm" variant="outline" className="gap-1.5 text-primary border-primary/30"><PlayCircle className="w-3.5 h-3.5" />Watch Recording</Button>
+                      <Button size="sm" variant="outline" className="gap-1 text-primary border-primary/30 shrink-0">
+                        <PlayCircle className="w-3.5 h-3.5" />Recording
+                      </Button>
                     </a>
+                  ) : (
+                    <span className="text-xs text-muted-foreground/50 shrink-0">No recording</span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{format(new Date(cls.scheduledAt), "dd MMM yyyy, hh:mm a")}</p>
               </div>
             ))}
           </div>
