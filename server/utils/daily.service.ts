@@ -22,8 +22,9 @@ export async function createDailyRoom(roomName: string, expiresAt: Date) {
         enable_screenshare: false,
         start_video_off: false,
         start_audio_off: false,
-        enable_prejoin_ui: false,   // skip "Are you ready to join?" screen
+        enable_prejoin_ui: false,
         enable_knocking: false,
+        owner_only_broadcast: true, // students are view-only; only admin can send audio/video
       },
     }),
   });
@@ -51,8 +52,10 @@ export async function createMeetingToken(
         is_owner: isOwner,
         exp: Math.floor(expiresAt.getTime() / 1000),
         enable_screenshare: isOwner,
-        start_video_off: false,
-        start_audio_off: !isOwner,  // students join with mic off by default
+        start_video_off: !isOwner,       // students have no video
+        start_audio_off: !isOwner,       // students have no mic
+        // Students are viewer-only: cannot publish audio/video
+        ...(isOwner ? {} : { permissions: { hasPresence: true, canSend: [] } }),
       },
     }),
   });

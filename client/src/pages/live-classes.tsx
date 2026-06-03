@@ -146,6 +146,7 @@ export default function LiveClassesPage() {
   const queryClient = useQueryClient();
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<number | null>(null);
+  const [endTarget, setEndTarget] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"classes" | "students">("classes");
 
   if (!canUseModule("live_classes")) return <PremiumGate />;
@@ -229,6 +230,19 @@ export default function LiveClassesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/live-classes"] });
       if (data.recordingUrl) toast({ title: "Recording saved!", description: "Students can now watch the recording." });
       else toast({ title: "Processing", description: data.message ?? "Recording is still being processed by Daily.co." });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const endMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/live-classes/${id}/end`, { method: "POST" });
+      if (!res.ok) throw new Error((await res.json()).message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/live-classes"] });
+      setEndTarget(null);
+      toast({ title: "Class ended" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -378,7 +392,7 @@ export default function LiveClassesPage() {
                 key={cls.id}
                 cls={cls}
                 onGoLive={() => navigate(`/live-classes/${cls.id}/studio`)}
-                onCancel={() => setCancelTarget(cls.id)}
+                onEnd={() => setEndTarget(cls.id)}
               />
             ))}
           </div>
@@ -564,6 +578,28 @@ export default function LiveClassesPage() {
         </DialogContent>
       </Dialog>
 
+      {/* End class confirmation */}
+      <Dialog open={endTarget !== null} onOpenChange={() => setEndTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>End this live class?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            The class will be marked as ended and students will be disconnected.
+          </p>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" onClick={() => setEndTarget(null)}>Keep Live</Button>
+            <Button
+              variant="destructive"
+              disabled={endMutation.isPending}
+              onClick={() => endTarget && endMutation.mutate(endTarget)}
+            >
+              {endMutation.isPending ? "Ending..." : "End Class"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Cancel confirmation */}
       <Dialog open={cancelTarget !== null} onOpenChange={() => setCancelTarget(null)}>
         <DialogContent className="sm:max-w-sm">
@@ -596,6 +632,7 @@ function ClassCard({
   cls,
   canGoLive,
   onGoLive,
+  onEnd,
   onCancel,
   onSaveRecording,
   recordingUrl,
@@ -604,6 +641,7 @@ function ClassCard({
   cls: LiveClass;
   canGoLive?: boolean;
   onGoLive?: () => void;
+  onEnd?: () => void;
   onCancel?: () => void;
   onSaveRecording?: () => void;
   recordingUrl?: string;
@@ -663,6 +701,12 @@ function ClassCard({
             Re-join Studio
           </Button>
         )}
+        {cls.status === "live" && onEnd && (
+          <Button size="sm" variant="destructive" onClick={onEnd} className="gap-1">
+            <Square className="w-3.5 h-3.5" />
+            End Class
+          </Button>
+        )}
         {cls.status === "scheduled" && canGoLive && onGoLive && (
           <Button size="sm" onClick={onGoLive} className="bg-violet-600 hover:bg-violet-700 text-white gap-1">
             <Play className="w-3.5 h-3.5" />
@@ -675,9 +719,9 @@ function ClassCard({
             {savingRecording ? "Fetching..." : "Get Recording"}
           </Button>
         )}
-        {(cls.status === "scheduled" || cls.status === "live") && onCancel && (
+        {cls.status === "scheduled" && onCancel && (
           <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={onCancel}>
-            {cls.status === "live" ? <Square className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+            <X className="w-3.5 h-3.5" />
           </Button>
         )}
       </div>

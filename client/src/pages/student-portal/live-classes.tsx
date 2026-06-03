@@ -32,10 +32,14 @@ function WatchClass({ classId, studentName, onLeave }: { classId: number; studen
         frame = DailyIframe.createFrame(containerRef.current!, {
           showLeaveButton: true,
           showFullscreenButton: true,
+          showParticipantsBar: false,
           iframeStyle: { width: "100%", height: "100%", border: "none", position: "absolute", top: "0", left: "0" },
-        });
+          // Hide mic/cam controls — students are view-only
+          showMicButton: false,
+          showVideoButton: false,
+          showScreenShareButton: false,
+        } as any);
         frame.on("left-meeting", () => { frame?.destroy().catch(() => {}); onLeave(); });
-        // Pass student name so Daily.co skips the "Enter your name" dialog
         await frame.join({ url: roomUrl, token, userName: studentName });
         setConnecting(false);
       } catch (err: any) {

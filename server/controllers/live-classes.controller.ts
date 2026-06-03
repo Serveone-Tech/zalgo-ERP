@@ -125,10 +125,11 @@ export const LiveClassesController = {
     try {
       const expiry = addMinutes(new Date(), (cls.durationMinutes ?? 60) + 120);
 
-      // Ensure prejoin UI is disabled for existing rooms as well
+      // Apply broadcast settings to room (works for existing rooms too)
       await updateDailyRoom(cls.dailyRoomName, {
         enable_prejoin_ui: false,
         enable_knocking: false,
+        owner_only_broadcast: true,
       }).catch(() => {});
 
       const token = await createMeetingToken(cls.dailyRoomName, true, expiry);
