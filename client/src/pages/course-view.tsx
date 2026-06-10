@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
+import { useCurrency } from "@/hooks/use-currency";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
@@ -60,6 +61,7 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
 }
 
 export default function CourseViewPage() {
+  const { fmt } = useCurrency();
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { user } = useAuth();
@@ -243,7 +245,7 @@ export default function CourseViewPage() {
                   Course Fee
                 </span>
                 <span className="font-semibold">
-                  ${course.fee.toLocaleString("en-IN")}
+                  {fmt(course.fee)}
                 </span>
               </div>
             </CardContent>
@@ -267,7 +269,7 @@ export default function CourseViewPage() {
               <InfoRow label="Duration" value={course.duration} />
               <InfoRow
                 label="Fee"
-                value={`$${course.fee.toLocaleString("en-IN")}`}
+                value={fmt(course.fee)}
               />
               <InfoRow label="Status" value={course.status} />
               <InfoRow label="Description" value={course.description} />

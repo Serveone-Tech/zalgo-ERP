@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
+import { useCurrency } from "@/hooks/use-currency";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { parseBranchId } from "@/components/branch-select";
@@ -65,6 +66,7 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
 }
 
 export default function StudentViewPage() {
+  const { fmt } = useCurrency();
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { user } = useAuth();
@@ -339,7 +341,7 @@ export default function StudentViewPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Total Paid</span>
                 <span className="font-semibold text-emerald-700">
-                  ₹{totalPaidDisplay.toLocaleString("en-IN")}
+                  {fmt(totalPaidDisplay)}
                 </span>
               </div>
 
@@ -349,7 +351,7 @@ export default function StudentViewPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Total Fee</span>
                     <span className="font-medium">
-                      ₹{displayNetFee.toLocaleString("en-IN")}
+                      {fmt(displayNetFee)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
@@ -359,7 +361,7 @@ export default function StudentViewPage() {
                     >
                       {isFullyPaid
                         ? "✓ Fully Paid"
-                        : `₹${displayRemaining.toLocaleString("en-IN")}`}
+                        : fmt(displayRemaining)}
                     </span>
                   </div>
 
@@ -504,7 +506,7 @@ export default function StudentViewPage() {
                       <div>
                         <p className="font-medium text-sm">{course.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {course.duration} · ₹{course.fee.toLocaleString("en-IN")}
+                          {course.duration} · {fmt(course.fee)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -543,7 +545,7 @@ export default function StudentViewPage() {
                     <SelectContent>
                       {availableCourses.map((c) => (
                         <SelectItem key={c.id} value={String(c.id)}>
-                          {c.name} — ₹{c.fee.toLocaleString("en-IN")}
+                          {c.name} — {fmt(c.fee)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -580,7 +582,7 @@ export default function StudentViewPage() {
                     >
                       <div>
                         <p className="font-medium text-sm">
-                          ₹{fee.amountPaid.toLocaleString("en-IN")}
+                          {fmt(fee.amountPaid)}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {fee.paymentMode} · {fee.receiptNo}
@@ -620,7 +622,7 @@ export default function StudentViewPage() {
                       </span>
                       {!isFullyPaid && (
                         <span className="text-xs font-semibold text-red-600">
-                          ₹{displayRemaining.toLocaleString("en-IN")}
+                          {fmt(displayRemaining)}
                         </span>
                       )}
                     </div>
@@ -671,13 +673,13 @@ export default function StudentViewPage() {
                             <span className="text-muted-foreground">
                               Total:{" "}
                               <span className="font-medium text-foreground">
-                                ₹{plan.netFee.toLocaleString("en-IN")}
+                                {fmt(plan.netFee)}
                               </span>
                             </span>
                             <span className="text-emerald-600">
                               Paid:{" "}
                               <span className="font-medium">
-                                ₹{planPaid.toLocaleString("en-IN")}
+                                {fmt(planPaid)}
                               </span>
                             </span>
                             <span
@@ -689,7 +691,7 @@ export default function StudentViewPage() {
                             >
                               {planFullyPaid
                                 ? "✓ Fully Cleared"
-                                : `Remaining: ₹${planRemaining.toLocaleString("en-IN")}`}
+                                : `Remaining: ${fmt(planRemaining)}`}
                             </span>
                           </div>
                         </div>
@@ -730,12 +732,11 @@ export default function StudentViewPage() {
                               </div>
                               <div className="text-right">
                                 <p className="text-xs font-medium">
-                                  ₹{inst.amount.toLocaleString("en-IN")}
+                                  {fmt(inst.amount)}
                                 </p>
                                 {inst.status === "paid" && inst.paidAmount ? (
                                   <p className="text-xs text-emerald-600">
-                                    Paid: ₹
-                                    {inst.paidAmount.toLocaleString("en-IN")}
+                                    Paid: {fmt(inst.paidAmount)}
                                   </p>
                                 ) : inst.dueDate ? (
                                   <p className="text-xs text-muted-foreground">

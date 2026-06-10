@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useCurrency } from "@/hooks/use-currency";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { BranchSelect, parseBranchId } from "@/components/branch-select";
 import { useBranches } from "@/hooks/use-branches";
@@ -77,6 +78,7 @@ const statusBadge: Record<string, { label: string; class: string }> = {
 };
 
 export default function FeesPage() {
+  const { fmt, symbol } = useCurrency();
   const searchStr = useSearch();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -334,7 +336,7 @@ export default function FeesPage() {
                           {student ? `${student.name}` : `ID: ${fee.studentId}`}
                         </TableCell>
                         <TableCell className="font-bold text-primary">
-                          ₹{fee.amountPaid.toLocaleString("en-IN")}
+                          {fmt(fee.amountPaid)}
                         </TableCell>
                         <TableCell>
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
@@ -439,13 +441,13 @@ export default function FeesPage() {
                             Total Fee
                           </span>
                           <span className="font-medium">
-                            ₹{plan.netFee.toLocaleString("en-IN")}
+                            {fmt(plan.netFee)}
                           </span>
                         </div>
                         <div className="flex justify-between text-xs">
                           <span className="text-muted-foreground">Paid</span>
                           <span className="font-medium text-emerald-600">
-                            ₹{(plan.amountPaid ?? 0).toLocaleString("en-IN")}
+                            {fmt(plan.amountPaid ?? 0)}
                           </span>
                         </div>
                         <div className="flex justify-between text-xs">
@@ -455,7 +457,7 @@ export default function FeesPage() {
                           <span
                             className={`font-medium ${remaining > 0 ? "text-red-600" : "text-emerald-600"}`}
                           >
-                            ₹{remaining.toLocaleString("en-IN")}
+                            {fmt(remaining)}
                           </span>
                         </div>
                         <div className="mt-3">
@@ -551,7 +553,7 @@ export default function FeesPage() {
                           #{inst.installmentNo}
                         </TableCell>
                         <TableCell className="font-semibold text-primary">
-                          ₹{inst.amount.toLocaleString("en-IN")}
+                          {fmt(inst.amount)}
                         </TableCell>
                         <TableCell className="text-sm">
                           {inst.dueDate ? (
@@ -696,6 +698,7 @@ function RecordPaymentForm({
   enrollments: { studentId: number; courseId: number }[];
   onSuccess: () => void;
 }) {
+  const { fmt, symbol } = useCurrency();
   const { toast } = useToast();
   const [studentId, setStudentId] = useState("");
   const [courseId, setCourseId] = useState("");
@@ -798,7 +801,7 @@ function RecordPaymentForm({
             <SelectContent>
               {studentCourses.map((c) => (
                 <SelectItem key={c.id} value={String(c.id)}>
-                  {c.name} — ₹{c.fee.toLocaleString("en-IN")}
+                  {c.name} — {fmt(c.fee)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -808,7 +811,7 @@ function RecordPaymentForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label>Amount (₹) *</Label>
+          <Label>Amount ({symbol}) *</Label>
           <Input
             data-testid="input-fee-amount"
             type="number"
@@ -858,6 +861,7 @@ function CreateFeePlanForm({
   courses: Course[];
   onSuccess: () => void;
 }) {
+  const { fmt, symbol } = useCurrency();
   const { toast } = useToast();
   const [studentId, setStudentId] = useState("");
   const [courseId, setCourseId] = useState("");
@@ -931,14 +935,14 @@ function CreateFeePlanForm({
               <SelectItem value="none">None (No course)</SelectItem>
               {courses.map((c) => (
                 <SelectItem key={c.id} value={String(c.id)}>
-                  {c.name} — ₹{c.fee.toLocaleString("en-IN")}
+                  {c.name} — {fmt(c.fee)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label>Total Fee (₹) *</Label>
+          <Label>Total Fee ({symbol}) *</Label>
           <Input
             data-testid="input-total-fee"
             type="number"
@@ -950,7 +954,7 @@ function CreateFeePlanForm({
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Discount (₹)</Label>
+          <Label>Discount ({symbol})</Label>
           <Input
             data-testid="input-discount"
             type="number"
@@ -964,7 +968,7 @@ function CreateFeePlanForm({
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Net Payable Fee:</span>
             <span className="font-bold text-primary">
-              ₹{netFee.toLocaleString("en-IN")}
+              {fmt(netFee)}
             </span>
           </div>
         </div>
@@ -1012,10 +1016,7 @@ function CreateFeePlanForm({
       </div>
       {paymentType === "installment" && totalFee && (
         <div className="p-3 bg-muted/40 rounded-lg text-xs text-muted-foreground">
-          Each installment: ~₹
-          {Math.round(netFee / Number(installmentCount)).toLocaleString(
-            "en-IN",
-          )}{" "}
+          Each installment: ~{fmt(Math.round(netFee / Number(installmentCount)))}{" "}
           per month
         </div>
       )}
@@ -1041,6 +1042,7 @@ function PayInstallmentForm({
   student?: Student;
   onSuccess: () => void;
 }) {
+  const { fmt, symbol } = useCurrency();
   const { toast } = useToast();
   const [amount, setAmount] = useState(String(installment.amount));
   const [paymentMode, setPaymentMode] = useState("Cash");
@@ -1080,7 +1082,7 @@ function PayInstallmentForm({
         <div className="flex justify-between">
           <span className="text-muted-foreground">Due Amount:</span>
           <span className="font-bold text-primary">
-            ₹{installment.amount.toLocaleString("en-IN")}
+            {fmt(installment.amount)}
           </span>
         </div>
         {installment.dueDate && (
@@ -1092,7 +1094,7 @@ function PayInstallmentForm({
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label>Amount Paid (₹) *</Label>
+          <Label>Amount Paid ({symbol}) *</Label>
           <Input
             data-testid="input-installment-amount"
             type="number"

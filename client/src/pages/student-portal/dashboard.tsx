@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { useCurrency } from "@/hooks/use-currency";
 import { CalendarCheck, ClipboardList, CreditCard, Video, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ interface DashboardData {
 }
 
 export default function StudentDashboard() {
+  const { fmt } = useCurrency();
   const [, navigate] = useLocation();
   const { data, isLoading } = useQuery<DashboardData>({ queryKey: ["/api/student-portal/dashboard"] });
 
@@ -20,7 +22,7 @@ export default function StudentDashboard() {
   const statCards = [
     { label: "Attendance", value: stats.attendancePct !== null ? `${stats.attendancePct}%` : "N/A", sub: `${stats.presentClasses}/${stats.totalClasses} classes`, icon: CalendarCheck, color: "text-green-600", bg: "bg-green-50", href: "/student/attendance" },
     { label: "Exams", value: String(stats.totalExams), sub: "Total tests", icon: ClipboardList, color: "text-blue-600", bg: "bg-blue-50", href: "/student/exams" },
-    { label: "Fee Paid", value: `₹${stats.totalFeePaid.toLocaleString("en-IN")}`, sub: "Total payments", icon: CreditCard, color: "text-violet-600", bg: "bg-violet-50", href: "/student/fees" },
+    { label: "Fee Paid", value: fmt(stats.totalFeePaid), sub: "Total payments", icon: CreditCard, color: "text-violet-600", bg: "bg-violet-50", href: "/student/fees" },
     { label: "Live Classes", value: stats.liveNow > 0 ? `${stats.liveNow} Live` : "0", sub: stats.liveNow > 0 ? "Class in progress!" : "No live class", icon: Video, color: stats.liveNow > 0 ? "text-red-600" : "text-muted-foreground", bg: stats.liveNow > 0 ? "bg-red-50" : "bg-muted/30", href: "/student/live-classes" },
   ];
 

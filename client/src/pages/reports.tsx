@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useCurrency } from "@/hooks/use-currency";
 import {
   Users,
   TrendingUp,
@@ -78,6 +79,7 @@ function StatCard({ title, value, icon: Icon, color, subtitle }: any) {
 }
 
 export default function ReportsPage() {
+  const { fmt } = useCurrency();
   const { data: dashboard } = useDashboardStats();
   const { data: students } = useStudentStats();
   const { data: fees } = useFeesReport();
@@ -194,7 +196,7 @@ export default function ReportsPage() {
           />
           <StatCard
             title="Fee Collected"
-            value={`₹${directFeeCollected.toLocaleString("en-IN")}`}
+            value={fmt(directFeeCollected)}
             icon={CreditCard}
             color="bg-emerald-50 text-emerald-600"
             subtitle={`${fees?.length || 0} payment records`}
@@ -218,7 +220,7 @@ export default function ReportsPage() {
               </div>
             </div>
             <p className="text-2xl font-bold text-emerald-600">
-              ₹{directFeeCollected.toLocaleString("en-IN")}
+              {fmt(directFeeCollected)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               {fees?.length || 0} payment records
@@ -235,7 +237,7 @@ export default function ReportsPage() {
               </div>
             </div>
             <p className="text-2xl font-bold text-amber-600">
-              ₹{totalPending.toLocaleString("en-IN")}
+              {fmt(totalPending)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               {pendingInstallments.length} unpaid installments
@@ -253,11 +255,10 @@ export default function ReportsPage() {
               </div>
             </div>
             <p className="text-2xl font-bold text-emerald-600">
-              ₹{totalIncome.toLocaleString("en-IN")}
+              {fmt(totalIncome)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Fees ₹{directFeeCollected.toLocaleString("en-IN")} + Other ₹
-              {nonFeeIncome.toLocaleString("en-IN")}
+              Fees {fmt(directFeeCollected)} + Other {fmt(nonFeeIncome)}
             </p>
           </div>
 
@@ -271,7 +272,7 @@ export default function ReportsPage() {
               </div>
             </div>
             <p className="text-2xl font-bold text-destructive">
-              ₹{totalExpense.toLocaleString("en-IN")}
+              {fmt(totalExpense)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               {allExpenseTransactions.length} expense entries
@@ -296,14 +297,13 @@ export default function ReportsPage() {
               <p
                 className={`text-2xl font-bold ${netBalance >= 0 ? "text-primary" : "text-destructive"}`}
               >
-                {netBalance >= 0 ? "+" : ""}₹
-                {Math.abs(netBalance).toLocaleString("en-IN")}
+                {netBalance >= 0 ? "+" : ""}{fmt(Math.abs(netBalance))}
               </p>
             </div>
           </div>
           <div className="text-right text-xs text-muted-foreground">
-            <p>Income: ₹{totalIncome.toLocaleString("en-IN")}</p>
-            <p>Expense: ₹{totalExpense.toLocaleString("en-IN")}</p>
+            <p>Income: {fmt(totalIncome)}</p>
+            <p>Expense: {fmt(totalExpense)}</p>
           </div>
         </div>
       </div>
@@ -336,7 +336,7 @@ export default function ReportsPage() {
                         />
                       </div>
                       <div className="w-32 text-right text-sm font-semibold text-emerald-600">
-                        ₹{amt.toLocaleString("en-IN")}
+                        {fmt(amt)}
                       </div>
                     </div>
                   );
@@ -371,7 +371,7 @@ export default function ReportsPage() {
                         />
                       </div>
                       <div className="w-32 text-right text-sm font-semibold text-destructive">
-                        ₹{amt.toLocaleString("en-IN")}
+                        {fmt(amt)}
                       </div>
                     </div>
                   );
@@ -406,7 +406,7 @@ export default function ReportsPage() {
                         />
                       </div>
                       <div className="w-32 text-right text-sm font-semibold text-primary">
-                        ₹{amount.toLocaleString("en-IN")}
+                        {fmt(amount)}
                       </div>
                     </div>
                   );

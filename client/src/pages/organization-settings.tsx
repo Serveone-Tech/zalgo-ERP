@@ -15,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Building2, Upload, Save, Loader2 } from "lucide-react";
+import { Building2, Upload, Save, Loader2, DollarSign } from "lucide-react";
+import { SUPPORTED_CURRENCIES } from "@/hooks/use-currency";
 
 export default function OrganizationSettingsPage() {
   const { user } = useAuth();
@@ -37,6 +38,8 @@ export default function OrganizationSettingsPage() {
     principalName: "",
     establishedYear: "",
     logo: "",
+    currency: "INR",
+    currencySymbol: "₹",
   });
 
   // Only admin can access this page
@@ -81,6 +84,8 @@ export default function OrganizationSettingsPage() {
         principalName: org.principalName || "",
         establishedYear: org.establishedYear || "",
         logo: org.logo || "",
+        currency: org.currency || "INR",
+        currencySymbol: org.currencySymbol || "₹",
       });
       if (org.logo) setLogoPreview(org.logo);
     }
@@ -121,11 +126,12 @@ export default function OrganizationSettingsPage() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      toast({ title: "Organization settings saved successfully" });
-      // Refresh org data everywhere — sidebar logo/name update ho
+    onSuccess: (savedOrg) => {
+      // Update cache immediately (symbol changes on all pages at once)
+      queryClient.setQueryData(["/api/auth/organization"], savedOrg);
+      // Also invalidate so background refetch confirms from server
       queryClient.invalidateQueries({ queryKey: ["/api/auth/organization"] });
-      // Go to dashboard
+      toast({ title: "Organization settings saved successfully" });
       navigate("/");
     },
     onError: (e: any) => {
@@ -259,6 +265,32 @@ export default function OrganizationSettingsPage() {
                   placeholder="e.g. 2010"
                   className="rounded-xl"
                 />
+              </div>
+
+              <div className="space-y-1.5 md:col-span-2">
+                <Label className="text-sm flex items-center gap-1.5">
+                  <DollarSign className="w-3.5 h-3.5 text-primary" />
+                  Currency
+                </Label>
+                <Select
+                  value={form.currency}
+                  onValueChange={(v) => {
+                    const cur = SUPPORTED_CURRENCIES.find((c) => c.code === v);
+                    setForm((f) => ({ ...f, currency: v, currencySymbol: cur?.symbol ?? "₹" }));
+                  }}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_CURRENCIES.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  All amounts are stored in INR. Live exchange rates are fetched automatically and refreshed every 6 hours.
+                </p>
               </div>
 
               <div className="space-y-1.5 md:col-span-2">

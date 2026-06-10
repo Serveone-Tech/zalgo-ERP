@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCurrency } from "@/hooks/use-currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -99,6 +100,7 @@ const TRANSACTION_FIELDS: FieldDef[] = [
 ];
 
 export default function TransactionsPage() {
+  const { fmt, symbol } = useCurrency();
   const { selectedBranchId } = useBranch();
   const { data: transactions, isLoading } = useTransactions(selectedBranchId);
   const { data: fees } = useFees();
@@ -307,7 +309,7 @@ export default function TransactionsPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Amount (₹) *</Label>
+                  <Label>Amount ({symbol}) *</Label>
                   <Input
                     name="amount"
                     type="number"
@@ -351,11 +353,10 @@ export default function TransactionsPage() {
             </div>
           </div>
           <p className="text-2xl font-bold text-emerald-600">
-            ₹{totalIncome.toLocaleString("en-IN")}
+            {fmt(totalIncome)}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Fees ₹{feeCollected.toLocaleString("en-IN")} + Other ₹
-            {nonFeeIncome.toLocaleString("en-IN")}
+            Fees {fmt(feeCollected)} + Other {fmt(nonFeeIncome)}
           </p>
         </div>
 
@@ -369,7 +370,7 @@ export default function TransactionsPage() {
             </div>
           </div>
           <p className="text-2xl font-bold text-destructive">
-            ₹{totalExpense.toLocaleString("en-IN")}
+            {fmt(totalExpense)}
           </p>
         </div>
 
@@ -389,7 +390,7 @@ export default function TransactionsPage() {
           <p
             className={`text-2xl font-bold ${balance >= 0 ? "text-primary" : "text-destructive"}`}
           >
-            ₹{Math.abs(balance).toLocaleString("en-IN")}
+            {fmt(Math.abs(balance))}
           </p>
         </div>
       </div>
@@ -455,8 +456,7 @@ export default function TransactionsPage() {
                       <span
                         className={`font-bold ${tx.type === "Income" ? "text-emerald-600" : "text-destructive"}`}
                       >
-                        {tx.type === "Income" ? "+" : "-"}₹
-                        {tx.amount.toLocaleString("en-IN")}
+                        {tx.type === "Income" ? "+" : "-"}{fmt(tx.amount)}
                       </span>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -483,7 +483,7 @@ export default function TransactionsPage() {
                           onClick={() =>
                             setDeleteTarget({
                               id: tx.id,
-                              label: `${tx.type} — ${tx.category} ₹${tx.amount.toLocaleString("en-IN")}`,
+                              label: `${tx.type} — ${tx.category} ${fmt(tx.amount)}`,
                             })
                           }
                           data-testid={`btn-delete-tx-${tx.id}`}

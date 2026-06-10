@@ -41,8 +41,10 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@shared/routes";
+import { useCurrency } from "@/hooks/use-currency";
 
 export default function CoursesPage() {
+  const { fmt } = useCurrency();
   const { data: courses, isLoading } = useCourses();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
@@ -166,7 +168,7 @@ export default function CoursesPage() {
                     Fee
                   </p>
                   <p className="text-sm font-bold text-primary">
-                    ${course.fee.toLocaleString("en-IN")}
+                    {fmt(course.fee)}
                   </p>
                 </div>
               </div>

@@ -347,6 +347,8 @@ export const organizations = pgTable("organizations", {
   boardAffiliation: text("board_affiliation"),
   principalName: text("principal_name"),
   establishedYear: text("established_year"),
+  currency: text("currency").default("INR"),
+  currencySymbol: text("currency_symbol").default("₹"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

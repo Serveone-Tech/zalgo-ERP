@@ -147,6 +147,8 @@ export default function LiveClassesPage() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<number | null>(null);
   const [endTarget, setEndTarget] = useState<number | null>(null);
+  const [recordingLinkTarget, setRecordingLinkTarget] = useState<number | null>(null);
+  const [recordingLinkUrl, setRecordingLinkUrl] = useState("");
   const [activeTab, setActiveTab] = useState<"classes" | "students">("classes");
 
   if (!canUseModule("live_classes")) return <PremiumGate />;
@@ -216,6 +218,25 @@ export default function LiveClassesPage() {
       if (!res.ok) throw new Error((await res.json()).message);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/live-classes/students"] }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const setRecordingLinkMutation = useMutation({
+    mutationFn: async ({ id, url }: { id: number; url: string }) => {
+      const res = await fetch(`/api/live-classes/${id}/recording/link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/live-classes"] });
+      setRecordingLinkTarget(null);
+      setRecordingLinkUrl("");
+      toast({ title: "Recording link saved!", description: "Students can now watch the recording." });
+    },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
@@ -426,9 +447,10 @@ export default function LiveClassesPage() {
               <ClassCard
                 key={cls.id}
                 cls={cls}
-                onSaveRecording={cls.status === "ended" && !cls.recordingUrl ? () => saveRecordingMutation.mutate(cls.id) : undefined}
                 recordingUrl={cls.recordingUrl ?? undefined}
-                savingRecording={saveRecordingMutation.isPending}
+                onSaveRecording={cls.status === "ended" ? () => saveRecordingMutation.mutate(cls.id) : undefined}
+                savingRecording={saveRecordingMutation.isPending && (saveRecordingMutation.variables as number) === cls.id}
+                onSetRecordingLink={cls.status === "ended" ? () => { setRecordingLinkTarget(cls.id); setRecordingLinkUrl(cls.recordingUrl ?? ""); } : undefined}
               />
             ))}
           </div>
@@ -584,6 +606,44 @@ export default function LiveClassesPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Set Recording Link dialog */}
+      <Dialog open={recordingLinkTarget !== null} onOpenChange={(o) => { if (!o) { setRecordingLinkTarget(null); setRecordingLinkUrl(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set Recording Link</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <p className="text-sm text-muted-foreground">
+              Paste the recording link (YouTube, Google Drive, etc.). Students will see a "Watch Recording" button.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Recording URL</label>
+              <Input
+                placeholder="https://youtube.com/... or Google Drive link"
+                value={recordingLinkUrl}
+                onChange={(e) => setRecordingLinkUrl(e.target.value)}
+              />
+            </div>
+            <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
+              <p className="font-medium">Supported links:</p>
+              <p>• YouTube: youtube.com/watch?v=... or youtu.be/...</p>
+              <p>• Google Drive: drive.google.com/file/d/.../view</p>
+              <p>• Any direct video URL</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setRecordingLinkTarget(null); setRecordingLinkUrl(""); }}>Cancel</Button>
+              <Button
+                disabled={!recordingLinkUrl.trim() || setRecordingLinkMutation.isPending}
+                onClick={() => recordingLinkTarget && setRecordingLinkMutation.mutate({ id: recordingLinkTarget, url: recordingLinkUrl.trim() })}
+              >
+                {setRecordingLinkMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Save Link
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* End class confirmation */}
       <Dialog open={endTarget !== null} onOpenChange={() => setEndTarget(null)}>
         <DialogContent className="sm:max-w-sm">
@@ -641,6 +701,7 @@ function ClassCard({
   onEnd,
   onCancel,
   onSaveRecording,
+  onSetRecordingLink,
   recordingUrl,
   savingRecording,
 }: {
@@ -650,6 +711,7 @@ function ClassCard({
   onEnd?: () => void;
   onCancel?: () => void;
   onSaveRecording?: () => void;
+  onSetRecordingLink?: () => void;
   recordingUrl?: string;
   savingRecording?: boolean;
 }) {
@@ -723,6 +785,12 @@ function ClassCard({
           <Button size="sm" variant="outline" onClick={onSaveRecording} disabled={savingRecording} className="gap-1 text-xs">
             <RefreshCw className={`w-3.5 h-3.5 ${savingRecording ? "animate-spin" : ""}`} />
             {savingRecording ? "Fetching..." : "Get Recording"}
+          </Button>
+        )}
+        {cls.status === "ended" && onSetRecordingLink && (
+          <Button size="sm" variant="outline" onClick={onSetRecordingLink} className="gap-1 text-xs">
+            <PlayCircle className="w-3.5 h-3.5" />
+            {recordingUrl ? "Update Link" : "Set Link"}
           </Button>
         )}
         {cls.status === "scheduled" && onCancel && (

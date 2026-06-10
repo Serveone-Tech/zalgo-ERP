@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useDashboardStats } from "@/hooks/use-dashboard";
+import { useCurrency } from "@/hooks/use-currency";
 import { useAuth } from "@/contexts/auth";
 import { useBranch } from "@/contexts/branch";
 import { useLocation } from "wouter";
@@ -26,6 +27,7 @@ import {
 import { format } from "date-fns";
 
 export default function Dashboard() {
+  const { fmt } = useCurrency();
   const { user } = useAuth();
   const { selectedBranch } = useBranch();
   const [, navigate] = useLocation();
@@ -55,7 +57,6 @@ export default function Dashboard() {
     navigate(`${path}${qs}`);
   };
 
-  const fmt = (val: number) => `₹${val.toLocaleString("en-IN")}`;
 
   const statCards = [
     {
