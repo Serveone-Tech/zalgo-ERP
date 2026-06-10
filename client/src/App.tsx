@@ -48,6 +48,8 @@ import StudentLiveClassesPage from "@/pages/student-portal/live-classes";
 import StudentAttendancePage from "@/pages/student-portal/attendance";
 import StudentExamsPage from "@/pages/student-portal/exams";
 import StudentFeesPage from "@/pages/student-portal/fees";
+import StudentOnlineExamsPage from "@/pages/student-portal/online-exams";
+import OnlineExamsPage from "@/pages/online-exams";
 
 function AccessDenied() {
   const [, navigate] = useLocation();
@@ -177,6 +179,7 @@ function AuthenticatedRouter() {
           <Route path="/student/live-classes" component={StudentLiveClassesPage} />
           <Route path="/student/attendance" component={StudentAttendancePage} />
           <Route path="/student/exams" component={StudentExamsPage} />
+          <Route path="/student/online-exams" component={StudentOnlineExamsPage} />
           <Route path="/student/fees" component={StudentFeesPage} />
           <Route component={StudentRedirect} />
         </Switch>
@@ -318,6 +321,9 @@ function AuthenticatedRouter() {
           </Route>
           <Route path="/live-classes">
             {() => <ProtectedRoute adminOnly component={LiveClassesPage} />}
+          </Route>
+          <Route path="/online-exams">
+            {() => <ProtectedRoute adminOnly component={OnlineExamsPage} />}
           </Route>
           <Route path="/live-classes/:id/studio">
             {() => <ProtectedRoute adminOnly component={LiveClassStudioPage} />}

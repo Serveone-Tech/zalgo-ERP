@@ -1,5 +1,5 @@
-import { useLocation, Link } from "wouter";
-import { LayoutDashboard, Video, ClipboardList, CalendarCheck, CreditCard, LogOut, GraduationCap } from "lucide-react";
+﻿import { useLocation, Link } from "wouter";
+import { LayoutDashboard, Video, ClipboardList, CalendarCheck, CreditCard, LogOut, GraduationCap, MonitorCheck } from "lucide-react";
 import { useAuth } from "@/contexts/auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -8,6 +8,7 @@ const navItems = [
   { href: "/student/live-classes", label: "Live Classes", icon: Video },
   { href: "/student/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/student/exams", label: "Exams", icon: ClipboardList },
+  { href: "/student/online-exams", label: "Online Exams", icon: MonitorCheck },
   { href: "/student/fees", label: "Fees", icon: CreditCard },
 ];
 
@@ -93,3 +94,4 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+

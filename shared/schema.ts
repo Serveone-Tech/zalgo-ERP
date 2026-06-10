@@ -5,6 +5,7 @@ import {
   integer,
   timestamp,
   boolean,
+  real,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -546,6 +547,65 @@ export type Payment = typeof payments.$inferSelect;
 export type Organization = typeof organizations.$inferSelect;
 export type AutomationCredential = typeof automationCredentials.$inferSelect;
 export type AutomationTrigger = typeof automationTriggers.$inferSelect;
+
+// ─── Online Exams ─────────────────────────────────────────────────────────────
+export const onlineExams = pgTable("online_exams", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  topic: text("topic").notNull(),
+  description: text("description"),
+  language: text("language").notNull().default("English"),
+  durationMinutes: integer("duration_minutes").notNull().default(60),
+  totalQuestions: integer("total_questions").notNull().default(10),
+  marksPerQuestion: integer("marks_per_question").notNull().default(4),
+  negativeMarking: boolean("negative_marking").default(false),
+  negativeMarkValue: text("negative_mark_value").default("1"),
+  passingPercent: integer("passing_percent").default(40),
+  status: text("status").notNull().default("draft"),
+  scheduledAt: timestamp("scheduled_at"),
+  expiresAt: timestamp("expires_at"),
+  adminId: integer("admin_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const examQuestions = pgTable("exam_questions", {
+  id: serial("id").primaryKey(),
+  examId: integer("exam_id").references(() => onlineExams.id).notNull(),
+  question: text("question").notNull(),
+  optionA: text("option_a").notNull(),
+  optionB: text("option_b").notNull(),
+  optionC: text("option_c").notNull(),
+  optionD: text("option_d").notNull(),
+  correctOption: text("correct_option").notNull(),
+  explanation: text("explanation"),
+  orderIndex: integer("order_index").notNull().default(0),
+});
+
+export const examAttempts = pgTable("exam_attempts", {
+  id: serial("id").primaryKey(),
+  examId: integer("exam_id").references(() => onlineExams.id).notNull(),
+  studentId: integer("student_id").references(() => students.id).notNull(),
+  status: text("status").notNull().default("in_progress"),
+  answers: text("answers").default("{}"),
+  obtainedMarks: real("obtained_marks"),
+  totalMarks: integer("total_marks"),
+  percentage: integer("percentage"),
+  passed: boolean("passed"),
+  startedAt: timestamp("started_at").defaultNow(),
+  submittedAt: timestamp("submitted_at"),
+  timeSpentSeconds: integer("time_spent_seconds"),
+});
+
+export const insertOnlineExamSchema = createInsertSchema(onlineExams).omit({ id: true, createdAt: true });
+export const insertExamQuestionSchema = createInsertSchema(examQuestions).omit({ id: true });
+export const insertExamAttemptSchema = createInsertSchema(examAttempts).omit({ id: true, startedAt: true });
+
+export type OnlineExam = typeof onlineExams.$inferSelect;
+export type ExamQuestion = typeof examQuestions.$inferSelect;
+export type ExamAttempt = typeof examAttempts.$inferSelect;
+export type InsertOnlineExam = typeof onlineExams.$inferInsert;
+export type InsertExamQuestion = typeof examQuestions.$inferInsert;
+export type InsertExamAttempt = typeof examAttempts.$inferInsert;
 
 export type InsertBranch = z.infer<typeof insertBranchSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;

@@ -26,6 +26,7 @@ import plansRouter from "./routes/plans.routes";
 import automationRouter from "./routes/automation.routes";
 import liveClassesRouter from "./routes/live-classes.routes";
 import studentPortalRouter from "./routes/student-portal.routes";
+import onlineExamsRouter from "./routes/online-exams.routes";
 import { z } from "zod";
 import { api } from "@shared/routes";
 import { Router } from "express";
@@ -113,6 +114,7 @@ export async function registerRoutes(
   app.use("/api/automation", automationRouter);
   app.use("/api/live-classes", liveClassesRouter);
   app.use("/api/student-portal", studentPortalRouter);
+  app.use("/api/online-exams", onlineExamsRouter);
 
   await seedDatabase().catch(console.error);
 

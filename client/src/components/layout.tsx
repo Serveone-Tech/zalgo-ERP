@@ -30,6 +30,7 @@ import {
   Building2,
   HelpCircle,
   Video,
+  MonitorCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -185,6 +186,13 @@ const navigation: { group: string; items: NavItem[] }[] = [
         href: "/live-classes",
         icon: Video,
         module: "live_classes",
+        adminOnly: true,
+      },
+      {
+        name: "Online Exams",
+        href: "/online-exams",
+        icon: MonitorCheck,
+        module: "online_exams",
         adminOnly: true,
       },
     ],
